@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── Multi-file DocCell ───────────────────────────────────────────────────────
 function DocCell({ id, docs, setDocs }) {
@@ -194,6 +195,8 @@ export default function Dashboard() {
   const projectTotal = projects.reduce((a, r) => a + n(r.score), 0);
   const qualTotal = quals.reduce((a, r) => a + n(r.score), 0);
   const teachingRaw = totalLecScore + courseFileScore + innovTotal + projectTotal + qualTotal;
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role");
   const stuFeedbackScore = feedback.reduce((a, r) => a + n(r.score), 0);
   const deptScore = deptActs.reduce((a, r) => a + n(r.score), 0);
   const uniScore = uniActs.reduce((a, r) => a + n(r.score), 0);
@@ -231,6 +234,7 @@ export default function Dashboard() {
     { id: "partA", label: "Part A — 360° Feedback", icon: "◉" },
     { id: "partB", label: "Part B — Research", icon: "◎" },
     { id: "summary", label: "Summary & Submit", icon: "▣" },
+    ...(role === "hod" ? [{ id: "hodDashboard", label: "Pending Approvals", icon: "📋", path: "/hod-dashboard" }] : []),
   ];
 
   return (
@@ -246,7 +250,7 @@ export default function Dashboard() {
         </div>
         <nav style={S.nav}>
           {navItems.map((item) => (
-            <button key={item.id} onClick={() => setActiveTab(item.id)}
+            <button key={item.id} onClick={() => item.path ? navigate(item.path) : setActiveTab(item.id)}
               style={{ ...S.navBtn, ...(activeTab === item.id ? S.navBtnActive : {}) }}>
               <span style={S.navIcon}>{item.icon}</span>
               {item.label}
@@ -1346,8 +1350,8 @@ export default function Dashboard() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-  page: { display: "flex", minHeight: "100vh", fontFamily: "'Georgia', serif", background: "#f0ede8", color: "#1e293b" },
-  sidebar: { width: 250, minHeight: "100vh", background: "#0f172a", display: "flex", flexDirection: "column", padding: "22px 18px", gap: 22, position: "sticky", top: 0, alignSelf: "flex-start", flexShrink: 0 },
+  page: { display: "flex", minHeight: "100vh", fontFamily: "'Georgia', serif", background: "#f8fafc", color: "#1e293b" },
+  sidebar: { width: 250, minHeight: "100vh", background: "#0f172a", display: "flex", flexDirection: "column", padding: "24px 18px", gap: 22, position: "sticky", top: 0, alignSelf: "flex-start", flexShrink: 0, borderTopRightRadius: 18, borderBottomRightRadius: 18, marginRight: 8, boxShadow: "6px 0 20px rgba(15,23,42,0.18)" },
   logo: { display: "flex", alignItems: "center", gap: 10 },
   logoIcon: { width: 38, height: 38, borderRadius: 9, background: "linear-gradient(135deg,#6366f1,#0ea5e9)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 },
   logoTitle: { color: "#f1f5f9", fontWeight: 700, fontSize: 13 },
@@ -1365,13 +1369,13 @@ const S = {
   avatarName: { color: "#e2e8f0", fontSize: 12, fontWeight: 600 },
   avatarDept: { color: "#64748b", fontSize: 10 },
 
-  main: { flex: 1, padding: "22px 26px", display: "flex", flexDirection: "column", gap: 16, overflowX: "auto" },
+  main: { flex: 1, padding: "24px 28px", display: "flex", flexDirection: "column", gap: 18, overflowX: "auto" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
   pageTitle: { margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a", letterSpacing: -0.5 },
   pageSubtitle: { margin: "3px 0 0", color: "#64748b", fontSize: 11 },
   gradePill: { padding: "5px 14px", borderRadius: 18, fontSize: 12, fontWeight: 600, flexShrink: 0 },
-  cards: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 },
-  card: { background: "#fff", borderRadius: 11, padding: "13px 15px", boxShadow: "0 1px 4px rgba(0,0,0,.06)" },
+  cards: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 },
+  card: { background: "#fff", borderRadius: 12, padding: "14px 16px", border: "1px solid #e2e8f0", boxShadow: "0 6px 16px rgba(15,23,42,.05)" },
   cardLabel: { color: "#64748b", fontSize: 10, textTransform: "uppercase", letterSpacing: .8, marginBottom: 3 },
   cardVal: { fontSize: 22, fontWeight: 800, lineHeight: 1 },
   cardMax: { fontSize: 12, color: "#94a3b8", fontWeight: 400 },
@@ -1379,11 +1383,11 @@ const S = {
   miniBar: { height: "100%", borderRadius: 4, transition: "width .4s" },
   cardPct: { color: "#94a3b8", fontSize: 10 },
 
-  panel: { background: "#fff", borderRadius: 12, padding: "22px 24px", boxShadow: "0 1px 6px rgba(0,0,0,.06)" },
+  panel: { background: "#fff", borderRadius: 14, padding: "24px 26px", border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,.05)" },
   sectionTitle: { margin: "0 0 3px", fontSize: 18, fontWeight: 700, color: "#0f172a" },
   sectionDesc: { margin: "0 0 16px", color: "#64748b", fontSize: 12, lineHeight: 1.6 },
 
-  sectionCard: { background: "#fff", borderRadius: 9, boxShadow: "0 1px 3px rgba(0,0,0,.06)", marginBottom: 16, overflow: "hidden", border: "1px solid #e2e8f0" },
+  sectionCard: { background: "#fff", borderRadius: 10, boxShadow: "0 6px 18px rgba(15,23,42,.04)", marginBottom: 18, overflow: "hidden", border: "1px solid #e2e8f0" },
   sectionCardHeader: { padding: "11px 15px", borderBottom: "1px solid #f1f5f9" },
   sectionCardTitle: { fontWeight: 700, fontSize: 13 },
   sectionCardSub: { color: "#64748b", fontSize: 11, marginTop: 2 },
@@ -1391,15 +1395,15 @@ const S = {
 
   subHead: { fontWeight: 700, fontSize: 11, color: "#475569", fontStyle: "italic", marginBottom: 6, marginTop: 3 },
 
-  t: { width: "100%", borderCollapse: "collapse", marginBottom: 6, fontSize: 11 },
-  th: { border: "1px solid #cbd5e1", padding: "5px 6px", background: "#0f172a", color: "#94a3b8", fontWeight: 700, textAlign: "center", verticalAlign: "middle", fontSize: 10 },
-  td: { border: "1px solid #e2e8f0", padding: "4px 7px", verticalAlign: "top" },
-  tdC: { border: "1px solid #e2e8f0", padding: "4px 7px", textAlign: "center", verticalAlign: "middle" },
-  tdBold: { border: "1px solid #e2e8f0", padding: "4px 7px", fontWeight: "bold", verticalAlign: "middle" },
-  scoreCell: { border: "1px solid #e2e8f0", padding: "3px 5px", textAlign: "center", verticalAlign: "middle", minWidth: 55, background: "#f8fafc" },
-  viewCell: { border: "1px solid #e2e8f0", padding: "4px 5px", verticalAlign: "top", minWidth: 110, background: "#fafbff" },
-  inp: { width: "100%", border: "none", outline: "none", fontSize: 11, fontFamily: "'Georgia', serif", background: "transparent", padding: 0 },
-  inpCenter: { width: "100%", border: "none", outline: "none", fontSize: 11, fontFamily: "'Georgia', serif", background: "transparent", padding: 0, textAlign: "center" },
+  t: { width: "100%", borderCollapse: "collapse", marginBottom: 8, fontSize: 12 },
+  th: { border: "1px solid #cbd5e1", padding: "7px 8px", background: "#0f172a", color: "#cbd5e1", fontWeight: 700, textAlign: "center", verticalAlign: "middle", fontSize: 10 },
+  td: { border: "1px solid #e2e8f0", padding: "6px 8px", verticalAlign: "top" },
+  tdC: { border: "1px solid #e2e8f0", padding: "6px 8px", textAlign: "center", verticalAlign: "middle" },
+  tdBold: { border: "1px solid #e2e8f0", padding: "6px 8px", fontWeight: "bold", verticalAlign: "middle" },
+  scoreCell: { border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center", verticalAlign: "middle", minWidth: 55, background: "#f8fafc" },
+  viewCell: { border: "1px solid #e2e8f0", padding: "6px", verticalAlign: "top", minWidth: 110, background: "#fafbff" },
+  inp: { width: "100%", border: "none", outline: "none", fontSize: 12, fontFamily: "'Georgia', serif", background: "transparent", padding: 0 },
+  inpCenter: { width: "100%", border: "none", outline: "none", fontSize: 12, fontFamily: "'Georgia', serif", background: "transparent", padding: 0, textAlign: "center" },
 
   // Multi-file doc cell
   docCellWrap: { display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" },

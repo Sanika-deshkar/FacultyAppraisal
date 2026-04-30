@@ -2,7 +2,13 @@ import { useState } from "react";
 
 export default function FacultyProfile({ user, onProceed }) {
   const [confirmed, setConfirmed] = useState(false);
-
+  const ROLE_LABEL = {
+  faculty: "Faculty (Self-Appraisal)",
+  hod: "Head of Department",
+  dean: "Dean",
+  director: "Director",
+  vc: "Vice Chancellor",
+  };
   const fields = [
     ["Employee ID",        user.employeeId],
     ["Full Name",          user.name],
@@ -13,15 +19,16 @@ export default function FacultyProfile({ user, onProceed }) {
     ["Teaching Experience",user.experience],
     ["Contact",            user.phone],
     ["Academic Year",      user.ay],
-    ["Appraisal Role",     user.role === "faculty" ? "Faculty (Self-Appraisal)" : user.role === "hod" ? "Head of Department" : user.role === "dean" ? "Dean / Director" : "Vice Chancellor"],
+   ["Appraisal Role", ROLE_LABEL[user.role]],
   ];
 
-  const roleColor = {
-    faculty: { bg: "#ede9fe", color: "#6d28d9" },
-    hod:     { bg: "#fef3c7", color: "#b45309" },
-    dean:    { bg: "#d1fae5", color: "#065f46" },
-    vc:      { bg: "#fee2e2", color: "#991b1b" },
-  }[user.role] || { bg: "#f1f5f9", color: "#475569" };
+const roleColor = {
+  faculty:  { bg: "#ede9fe", color: "#6d28d9" },
+  hod:      { bg: "#fef3c7", color: "#b45309" },
+  dean:     { bg: "#d1fae5", color: "#065f46" },
+  director: { bg: "#cffafe", color: "#0e7490" },
+  vc:       { bg: "#fee2e2", color: "#991b1b" },
+}[user.role] || { bg: "#f1f5f9", color: "#475569" };
 
   return (
     <div style={S.page}>
@@ -124,14 +131,14 @@ export default function FacultyProfile({ user, onProceed }) {
 const S = {
   page: {
     minHeight: "100vh",
-    background: "#f0ede8",
+    background: "#f8fafc",
     fontFamily: "'Georgia', serif",
     color: "#1e293b",
   },
 
   topBar: {
     background: "#0f172a",
-    padding: "14px 40px",
+    padding: "14px 32px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -174,9 +181,9 @@ const S = {
   },
 
   content: {
-    maxWidth: 700,
+    maxWidth: 760,
     margin: "0 auto",
-    padding: "48px 24px 60px",
+    padding: "40px 24px 56px",
   },
 
   greeting: {
@@ -199,8 +206,9 @@ const S = {
 
   card: {
     background: "#fff",
-    borderRadius: 14,
-    boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+    borderRadius: 16,
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 10px 26px rgba(15,23,42,0.08)",
     padding: "28px 32px",
     marginBottom: 18,
   },
@@ -253,7 +261,7 @@ const S = {
   infoGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "16px 28px",
+    gap: "18px 24px",
   },
   infoItem: {},
   infoLabel: {
@@ -306,8 +314,8 @@ const S = {
   },
 
   noteBox: {
-    background: "#fefce8",
-    border: "1px solid #fde68a",
+    background: "#fffbeb",
+    border: "1px solid #fcd34d",
     borderRadius: 9,
     padding: "12px 16px",
     fontSize: 12,
