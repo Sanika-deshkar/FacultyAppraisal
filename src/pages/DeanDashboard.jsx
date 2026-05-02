@@ -52,14 +52,7 @@ function StatusBadge({ status }) {
 function RO({ val, center }) {
   return <span style={{ fontSize: 11, fontFamily: "Georgia, serif", color: "#1e293b", display: "block", textAlign: center ? "center" : "left" }}>{val || <span style={{ color: "#cbd5e1" }}>—</span>}</span>;
 }
-function DeanInput({ val, onChange }) {
-  return (
-    <input type="number" min="0" step="0.5" value={val}
-      onChange={e => onChange(e.target.value)}
-      style={{ width: 58, textAlign: "center", border: "1.5px solid #7c3aed", borderRadius: 5, padding: "3px 5px", fontSize: 11, fontFamily: "Georgia, serif", outline: "none", background: "#faf5ff" }}
-    />
-  );
-}
+
 function SelfInput({ val, onChange }) {
   return (
     <input type="number" min="0" step="0.5" value={val}
@@ -163,21 +156,34 @@ function SC({ title, subtitle, accent = "#7c3aed", children }) {
     </div>
   );
 }
-
 // ─── Table style constants ────────────────────────────────────────────────────
 const T = { width: "100%", borderCollapse: "collapse", fontSize: 12 };
 const TH = { border: "1px solid #cbd5e1", padding: "7px 8px", background: "#0f172a", color: "#cbd5e1", fontWeight: 700, textAlign: "center", fontSize: 10 };
 const TH_HOD = { ...TH, background: "#312e81", color: "#c7d2fe" };
+const TH_DIR = { ...TH, background: "#0c4a6e", color: "#bae6fd" };
+const TH_DEAN = { ...TH, background: "#065f46", color: "#a7f3d0" };
 const TD = { border: "1px solid #e2e8f0", padding: "4px 6px", verticalAlign: "middle" };
 const TDC = { ...TD, textAlign: "center" };
 const TDS = { ...TD, textAlign: "center", background: "#f8fafc", minWidth: 52 };
 const TDS_HOD = { ...TDS, background: "#f0f4ff" };
+const TDS_DIR = { ...TDS, background: "#f0f9ff" };
+const TDS_DEAN = { ...TDS, background: "#f0fdf4" };
 const TDV = { ...TD, background: "#fafbff", minWidth: 110 };
 
-// ─── Faculty Form in HOD Review Mode ─────────────────────────────────────────
-function FacultyReviewForm({ faculty, hodData, setHodData }) {
+// ─── DeanInput (green, editable) ─────────────────────────────────────────────
+function DeanInput({ val, onChange }) {
+  return (
+    <input type="number" min="0" step="0.5" value={val}
+      onChange={e => onChange(e.target.value)}
+      style={{ width: 58, textAlign: "center", border: "1.5px solid #059669", borderRadius: 5, padding: "3px 5px", fontSize: 11, fontFamily: "Georgia, serif", outline: "none", background: "#f0fdf4" }}
+    />
+  );
+}
+
+// ─── FacultyReviewForm (Dean Review Mode) ────────────────────────────────────
+function FacultyReviewForm({ faculty, deanData, setDeanData }) {
   const set = (section, idx, field, val) => {
-    setHodData(prev => {
+    setDeanData(prev => {
       const updated = { ...prev };
       if (!updated[section]) updated[section] = JSON.parse(JSON.stringify(faculty[section] || []));
       if (idx === null) { updated[section] = { ...updated[section], [field]: val }; }
@@ -185,28 +191,31 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       return updated;
     });
   };
-  const setScalar = (key, val) => setHodData(prev => ({ ...prev, [key]: val }));
+  const setScalar = (key, val) => setDeanData(prev => ({ ...prev, [key]: val }));
 
   const get = (section, idx, field) => {
-    if (hodData[section]) {
-      const s = hodData[section];
-      return idx === null ? (s[field] ?? faculty[section]?.[field] ?? "") : (s[idx]?.[field] ?? faculty[section]?.[idx]?.[field] ?? "");
+    if (deanData[section]) {
+      const s = deanData[section];
+      return idx === null ? (s[field] ?? "") : (s[idx]?.[field] ?? "");
     }
-    return idx === null ? (faculty[section]?.[field] ?? "") : (faculty[section]?.[idx]?.[field] ?? "");
+    return "";
   };
-  const getS = (key) => hodData[key] ?? faculty[key] ?? "";
+  const getS = (key) => deanData[key] ?? "";
 
-  const { info, lectures, courseFile, projects, quals, feedback, deptActs, uniActs, society, industry, acr, journals, books, ict, research, patents, awards, confs, proposals, fdps, training, docs } = faculty;
+  const { info, lectures, courseFile, projects, quals, feedback, deptActs, uniActs,
+          society, industry, acr, journals, books, ict, research, patents, awards,
+          confs, proposals, fdps, training, docs } = faculty;
 
   const rows = (arr) => arr && arr.length > 0 ? arr : [{}];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* HOD Review Banner */}
-      <div style={{ background: "linear-gradient(90deg,#312e81,#4338ca)", color: "#e0e7ff", borderRadius: 8, padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+      {/* Dean Review Banner */}
+      <div style={{ background: "linear-gradient(90deg,#065f46,#059669)", color: "#a7f3d0", borderRadius: 8, padding: "10px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
         <span style={{ fontSize: 18 }}>🔍</span>
         <div>
-          <strong>HOD Review Mode</strong> — Faculty data is read-only. Only <span style={{ color: "#c7d2fe", fontWeight: 700 }}>HOD Score</span> columns are editable. Click <span style={{ color: "#c7d2fe" }}>📄 View Doc</span> links to open uploaded files.
+          <strong style={{ color: "#fff" }}>Dean Review Mode</strong> — Faculty, HOD & Director scores are read-only. Only{" "}
+          <span style={{ color: "#fff", fontWeight: 700 }}>Dean Score</span> columns are editable.
         </div>
       </div>
 
@@ -214,7 +223,7 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       <SC title="Faculty Information" accent="#6366f1">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <tbody>
-            {[["Name", info.name], ["Qualification", info.qual], ["Designation", info.desig], ["Academic Year", info.ay]].map(([label, val]) => (
+            {[["Name", info?.name], ["Qualification", info?.qual], ["Designation", info?.desig], ["Academic Year", info?.ay]].map(([label, val]) => (
               <tr key={label}>
                 <td style={{ padding: "6px 10px", background: "#f8fafc", fontWeight: 600, border: "1px solid #e2e8f0", width: "35%" }}>{label}</td>
                 <td style={{ padding: "5px 10px", border: "1px solid #e2e8f0", color: "#334155" }}>{val}</td>
@@ -225,7 +234,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       </SC>
 
       {/* ── PART A ── */}
-      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#dbeafe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>PART A — Teaching & Academic Activities</div>
+      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#dbeafe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>
+        PART A — Teaching & Academic Activities
+      </div>
 
       {/* A1: Lectures */}
       <SC title="A1. Lectures / Tutorials / Practicals (Max 50)" accent="#6366f1">
@@ -233,9 +244,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <table style={T}>
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Semester</th><th style={TH}>Course Code / Name</th>
-              <th style={TH}>Planned</th><th style={TH}>Conducted</th>
-              <th style={TH}>View Docs</th>
+              <th style={TH}>Planned</th><th style={TH}>Conducted</th><th style={TH}>View Docs</th>
               <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
               {rows(lectures).map((r, i) => (
@@ -247,7 +258,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
                   <td style={TDC}><RO val={r.conducted} center /></td>
                   <td style={TDV}><ViewDocsCell docKey={`lec-${i}`} docs={docs} /></td>
                   <td style={TDS}><RO val={r.score} center /></td>
-                  <td style={TDS_HOD}><HodInput val={get("lectures", i, "hod")} onChange={v => set("lectures", i, "hod", v)} /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("lectures", i, "dean")} onChange={v => set("lectures", i, "dean", v)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -257,35 +270,43 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
 
       {/* A2: Course File */}
       <SC title="A2. Course File (Max 20)" accent="#6366f1">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td style={TD}><RO val={courseFile?.course} /></td>
-              <td style={TD}><RO val={courseFile?.title} /></td>
-              <td style={TDC}><RO val={courseFile?.details} center /></td>
-              <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-              <td style={TDS}><RO val={courseFile?.score} center /></td>
-              <td style={TDS_HOD}><HodInput val={get("courseFile", null, "hod")} onChange={v => set("courseFile", null, "hod", v)} /></td>
-            </tr>
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
+              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th>
+              <th style={TH_HOD}>HOD Score</th><th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td style={TD}><RO val={courseFile?.course} /></td>
+                <td style={TD}><RO val={courseFile?.title} /></td>
+                <td style={TDC}><RO val={courseFile?.details} center /></td>
+                <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
+                <td style={TDS}><RO val={courseFile?.score} center /></td>
+                <td style={TDS_HOD}><RO val={courseFile?.hod} center /></td>
+                <td style={TDS_DIR}><RO val={courseFile?.director} center /></td>
+                <td style={TDS_DEAN}><DeanInput val={get("courseFile", null, "dean")} onChange={v => set("courseFile", null, "dean", v)} /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* A3: Innovative Teaching */}
       <SC title="A3. Innovative Teaching-Learning (Max 10)" accent="#8b5cf6">
         <table style={T}>
           <thead><tr>
-            <th style={TH}>Method</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>Method</th><th style={TH}>Faculty Score</th>
+            <th style={TH_HOD}>HOD Score</th><th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
           </tr></thead>
           <tbody>
             <tr>
               <td style={TD}>Innovative / participatory teaching methods used</td>
               <td style={TDS}><RO val={faculty.innovScore} center /></td>
-              <td style={TDS_HOD}><HodInput val={getS("innovHod")} onChange={v => setScalar("innovHod", v)} /></td>
+              <td style={TDS_HOD}><RO val={faculty.innovHod} center /></td>
+              <td style={TDS_DIR}><RO val={faculty.innovDirector} center /></td>
+              <td style={TDS_DEAN}><DeanInput val={getS("innovDean")} onChange={v => setScalar("innovDean", v)} /></td>
             </tr>
           </tbody>
         </table>
@@ -293,173 +314,210 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
 
       {/* A4: Projects */}
       <SC title="A4. Projects (Max 10)" accent="#8b5cf6">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Project Type</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(projects).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.label} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`proj-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("projects", i, "hod")} onChange={v => set("projects", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Project Type</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(projects).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.label} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`proj-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("projects", i, "dean")} onChange={v => set("projects", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* A5: Qualification */}
       <SC title="A5. Qualification Enhancement (Max 10)" accent="#8b5cf6">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Description</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(quals).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.label} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`qual-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("quals", i, "hod")} onChange={v => set("quals", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Description</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(quals).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.label} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`qual-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("quals", i, "dean")} onChange={v => set("quals", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* B: Student Feedback */}
       <SC title="B. Student Feedback (Max 10)" accent="#0ea5e9">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>Feedback 1</th>
-            <th style={TH}>Feedback 2</th><th style={TH}>Average</th>
-            <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(feedback).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.code} /></td>
-                <td style={TDC}><RO val={r.fb1} center /></td>
-                <td style={TDC}><RO val={r.fb2} center /></td>
-                <td style={{ ...TDC, fontWeight: 700, color: "#6366f1" }}>
-                  {r.fb1 && r.fb2 ? ((n(r.fb1) + n(r.fb2)) / 2).toFixed(2) : "—"}
-                </td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("feedback", i, "hod")} onChange={v => set("feedback", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>FB1</th>
+              <th style={TH}>FB2</th><th style={TH}>Average</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(feedback).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.code} /></td>
+                  <td style={TDC}><RO val={r.fb1} center /></td>
+                  <td style={TDC}><RO val={r.fb2} center /></td>
+                  <td style={{ ...TDC, fontWeight: 700, color: "#6366f1" }}>
+                    {r.fb1 && r.fb2 ? ((n(r.fb1) + n(r.fb2)) / 2).toFixed(2) : "—"}
+                  </td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("feedback", i, "dean")} onChange={v => set("feedback", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* C: Dept Activities */}
       <SC title="C. Departmental Activities (Max 20)" accent="#f59e0b">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(deptActs).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.activity} /></td>
-                <td style={TD}><RO val={r.nature} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`dept-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("deptActs", i, "hod")} onChange={v => set("deptActs", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(deptActs).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.activity} /></td>
+                  <td style={TD}><RO val={r.nature} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`dept-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("deptActs", i, "dean")} onChange={v => set("deptActs", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* D: University Activities */}
       <SC title="D. University Activities (Max 30)" accent="#f59e0b">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(uniActs).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.activity} /></td>
-                <td style={TD}><RO val={r.nature} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`uni-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("uniActs", i, "hod")} onChange={v => set("uniActs", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Nature</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(uniActs).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.activity} /></td>
+                  <td style={TD}><RO val={r.nature} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`uni-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("uniActs", i, "dean")} onChange={v => set("uniActs", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* E: Society */}
       <SC title="E. Contribution to Society (Max 10)" accent="#10b981">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(society).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.label} /></td>
-                <td style={TD}><RO val={r.details} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`soc-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("society", i, "hod")} onChange={v => set("society", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Activity</th><th style={TH}>Details</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(society).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.label} /></td>
+                  <td style={TD}><RO val={r.details} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`soc-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("society", i, "dean")} onChange={v => set("society", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* F: Industry */}
       <SC title="F. Industry Connect (Max 5)" accent="#10b981">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Industry Name</th><th style={TH}>Details</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(industry).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.name} /></td>
-                <td style={TD}><RO val={r.details} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`ind-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("industry", i, "hod")} onChange={v => set("industry", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Industry Name</th><th style={TH}>Details</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(industry).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.name} /></td>
+                  <td style={TD}><RO val={r.details} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`ind-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("industry", i, "dean")} onChange={v => set("industry", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
-      {/* G: ACR */}
+      {/* G: ACR — HOD-only, no faculty/director score */}
       <SC title="G. Annual Confidential Report (Max 25)" accent="#ef4444">
-        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>⚠️ ACR is assessed by HOD only — faculty does not fill scores.</div>
+        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>⚠️ ACR is assessed by HOD only.</div>
         <table style={T}>
           <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Parameter</th><th style={TH_HOD}>HOD Score</th>
+            <th style={TH}>SN</th><th style={TH}>Parameter</th>
+            <th style={TH_HOD}>HOD Score</th><th style={TH_DEAN}>Dean Score</th>
           </tr></thead>
           <tbody>
             {rows(acr).map((r, i) => (
               <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
                 <td style={TDC}>{i + 1}</td>
                 <td style={TD}><RO val={r.label} /></td>
-                <td style={TDS_HOD}><HodInput val={get("acr", i, "hod")} onChange={v => set("acr", i, "hod", v)} /></td>
+                <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                <td style={TDS_DEAN}><DeanInput val={get("acr", i, "dean")} onChange={v => set("acr", i, "dean", v)} /></td>
               </tr>
             ))}
           </tbody>
@@ -467,7 +525,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       </SC>
 
       {/* ── PART B ── */}
-      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#ede9fe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>PART B — Research & Academic Contributions</div>
+      <div style={{ fontWeight: 800, fontSize: 13, color: "#1e293b", background: "#ede9fe", padding: "8px 14px", borderRadius: 6, marginBottom: 10, letterSpacing: 0.3 }}>
+        PART B — Research & Academic Contributions
+      </div>
 
       {/* B1: Journals */}
       <SC title="B1. Research Papers / Journal Publications (Max 120)" accent="#7c3aed">
@@ -475,8 +535,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <table style={T}>
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Journal</th>
-              <th style={TH}>ISSN</th><th style={TH}>Indexing</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>ISSN</th><th style={TH}>Indexing</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
               {rows(journals).map((r, i) => (
@@ -488,7 +549,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
                   <td style={TDC}><RO val={r.index} center /></td>
                   <td style={TDV}><ViewDocsCell docKey={`jour-${i}`} docs={docs} /></td>
                   <td style={TDS}><RO val={r.score} center /></td>
-                  <td style={TDS_HOD}><HodInput val={get("journals", i, "hod")} onChange={v => set("journals", i, "hod", v)} /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("journals", i, "dean")} onChange={v => set("journals", i, "dean", v)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -502,8 +565,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
           <table style={T}>
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Book & Publisher</th>
-              <th style={TH}>ISBN</th><th style={TH}>First Author?</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>ISBN</th><th style={TH}>First Author?</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
               {rows(books).map((r, i) => (
@@ -515,7 +579,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
                   <td style={TDC}><RO val={r.first} center /></td>
                   <td style={TDV}><ViewDocsCell docKey={`book-${i}`} docs={docs} /></td>
                   <td style={TDS}><RO val={r.score} center /></td>
-                  <td style={TDS_HOD}><HodInput val={get("books", i, "hod")} onChange={v => set("books", i, "hod", v)} /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("books", i, "dean")} onChange={v => set("books", i, "dean", v)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -525,62 +591,75 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
 
       {/* B3: ICT */}
       <SC title="B3. ICT / E-Content / Pedagogy (Max 20)" accent="#0ea5e9">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th><th style={TH}>Quadrants</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(ict).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.title} /></td>
-                <td style={TD}><RO val={r.type} /></td>
-                <td style={TDC}><RO val={r.quad} center /></td>
-                <td style={TDV}><ViewDocsCell docKey={`ict-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("ict", i, "hod")} onChange={v => set("ict", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th>
+              <th style={TH}>Quadrants</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(ict).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TD}><RO val={r.type} /></td>
+                  <td style={TDC}><RO val={r.quad} center /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`ict-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("ict", i, "dean")} onChange={v => set("ict", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* B4: Research Guidance */}
       <SC title="B4. Research Guidance — PhD / PG (Max 30)" accent="#059669">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Degree</th><th style={TH}>Student Name</th><th style={TH}>Status</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(research).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TDC}><RO val={r.degree} center /></td>
-                <td style={TD}><RO val={r.name} /></td>
-                <td style={TD}><RO val={r.thesis} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`res-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("research", i, "hod")} onChange={v => set("research", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Degree</th><th style={TH}>Student Name</th>
+              <th style={TH}>Status</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(research).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TDC}><RO val={r.degree} center /></td>
+                  <td style={TD}><RO val={r.name} /></td>
+                  <td style={TD}><RO val={r.thesis} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`res-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("research", i, "dean")} onChange={v => set("research", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
-      {/* B5: Patents */}
+      {/* B5a: Patents */}
       <SC title="B5a. Patents / IPR (Max 40)" accent="#f97316">
         <div style={{ overflowX: "auto" }}>
           <table style={T}>
             <thead><tr>
               <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th>
               <th style={TH}>Filed</th><th style={TH}>Status</th><th style={TH}>File No.</th>
-              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th>
+              <th style={TH_HOD}>HOD Score</th><th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
               {rows(patents).map((r, i) => (
-                <tr key={i}>
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
                   <td style={TDC}>{i + 1}</td>
                   <td style={TD}><RO val={r.title} /></td>
                   <td style={TDC}><RO val={r.type} center /></td>
@@ -589,7 +668,9 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
                   <td style={TDC}><RO val={r.fileNo} center /></td>
                   <td style={TDV}><ViewDocsCell docKey={`pat-${i}`} docs={docs} /></td>
                   <td style={TDS}><RO val={r.score} center /></td>
-                  <td style={TDS_HOD}><HodInput val={get("patents", i, "hod")} onChange={v => set("patents", i, "hod", v)} /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("patents", i, "dean")} onChange={v => set("patents", i, "dean", v)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -599,265 +680,154 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
 
       {/* B5b: Awards */}
       <SC title="B5b. Awards / Fellowships (Max 10)" accent="#f97316">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Award Title</th><th style={TH}>Date</th>
-            <th style={TH}>Agency</th><th style={TH}>Level</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(awards).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.title} /></td>
-                <td style={TDC}><RO val={r.date} center /></td>
-                <td style={TD}><RO val={r.agency} /></td>
-                <td style={TD}><RO val={r.level} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`awd-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("awards", i, "hod")} onChange={v => set("awards", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Award Title</th><th style={TH}>Date</th>
+              <th style={TH}>Agency</th><th style={TH}>Level</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(awards).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TDC}><RO val={r.date} center /></td>
+                  <td style={TD}><RO val={r.agency} /></td>
+                  <td style={TD}><RO val={r.level} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`awd-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("awards", i, "dean")} onChange={v => set("awards", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* B6: Conferences */}
       <SC title="B6. Conferences / Papers Presented (Max 30)" accent="#6366f1">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Title / Session</th><th style={TH}>Type</th>
-            <th style={TH}>Organizer</th><th style={TH}>Level</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(confs).map((r, i) => (
-              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.title} /></td>
-                <td style={TD}><RO val={r.type} /></td>
-                <td style={TD}><RO val={r.org} /></td>
-                <td style={TD}><RO val={r.level} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`conf-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("confs", i, "hod")} onChange={v => set("confs", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Type</th>
+              <th style={TH}>Organizer</th><th style={TH}>Level</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(confs).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TD}><RO val={r.type} /></td>
+                  <td style={TD}><RO val={r.org} /></td>
+                  <td style={TD}><RO val={r.level} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`conf-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("confs", i, "dean")} onChange={v => set("confs", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* B7: Proposals */}
       <SC title="B7. Research Proposals / Products (Max 20)" accent="#0ea5e9">
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Duration</th>
-            <th style={TH}>Funding Agency</th><th style={TH}>Amount</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(proposals).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.title} /></td>
-                <td style={TDC}><RO val={r.duration} center /></td>
-                <td style={TD}><RO val={r.agency} /></td>
-                <td style={TDC}><RO val={r.amount} center /></td>
-                <td style={TDV}><ViewDocsCell docKey={`prop-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("proposals", i, "hod")} onChange={v => set("proposals", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Title</th><th style={TH}>Duration</th>
+              <th style={TH}>Funding Agency</th><th style={TH}>Amount</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(proposals).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TDC}><RO val={r.duration} center /></td>
+                  <td style={TD}><RO val={r.agency} /></td>
+                  <td style={TDC}><RO val={r.amount} center /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`prop-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("proposals", i, "dean")} onChange={v => set("proposals", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
 
       {/* B8: Self Dev */}
       <SC title="B8. Self Development — FDP / Training (Max 10)" accent="#10b981">
         <div style={{ fontWeight: 600, fontSize: 11, color: "#475569", marginBottom: 6 }}>FDP / Workshops</div>
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Program</th><th style={TH}>Duration</th><th style={TH}>Organizer</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(fdps).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.program} /></td>
-                <td style={TDC}><RO val={r.duration} center /></td>
-                <td style={TD}><RO val={r.org} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`fdp-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("fdps", i, "hod")} onChange={v => set("fdps", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Program</th><th style={TH}>Duration</th>
+              <th style={TH}>Organizer</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(fdps).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.program} /></td>
+                  <td style={TDC}><RO val={r.duration} center /></td>
+                  <td style={TD}><RO val={r.org} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`fdp-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("fdps", i, "dean")} onChange={v => set("fdps", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <div style={{ fontWeight: 600, fontSize: 11, color: "#475569", margin: "12px 0 6px" }}>Industrial Training</div>
-        <table style={T}>
-          <thead><tr>
-            <th style={TH}>SN</th><th style={TH}>Company</th><th style={TH}>Duration</th><th style={TH}>Nature</th>
-            <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-          </tr></thead>
-          <tbody>
-            {rows(training).map((r, i) => (
-              <tr key={i}>
-                <td style={TDC}>{i + 1}</td>
-                <td style={TD}><RO val={r.company} /></td>
-                <td style={TDC}><RO val={r.duration} center /></td>
-                <td style={TD}><RO val={r.nature} /></td>
-                <td style={TDV}><ViewDocsCell docKey={`train-${i}`} docs={docs} /></td>
-                <td style={TDS}><RO val={r.score} center /></td>
-                <td style={TDS_HOD}><HodInput val={get("training", i, "hod")} onChange={v => set("training", i, "hod", v)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}>
+            <thead><tr>
+              <th style={TH}>SN</th><th style={TH}>Company</th><th style={TH}>Duration</th>
+              <th style={TH}>Nature</th><th style={TH}>View Docs</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
+              <th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {rows(training).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.company} /></td>
+                  <td style={TDC}><RO val={r.duration} center /></td>
+                  <td style={TD}><RO val={r.nature} /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`train-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("training", i, "dean")} onChange={v => set("training", i, "dean", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SC>
     </div>
   );
 }
 
-// ─── Full Review Panel (opened when HOD clicks Review) ────────────────────────
-function ReviewPanel({ faculty, onBack, onSubmit }) {
-  const [hodData, setHodData] = useState({});
-  const [remarks, setRemarks] = useState(faculty.hodRemarks || "");
-  const [tab, setTab] = useState("form");
-
-  // Compute HOD total from hodData
-  const calcHodScore = () => {
-    const get = (section, idx, field) => {
-      if (hodData[section]) {
-        const s = hodData[section];
-        return idx === null ? n(s[field]) : n(s[idx]?.[field]);
-      }
-      return idx === null ? n(faculty[section]?.[field]) : n(faculty[section]?.[idx]?.[field]);
-    };
-    const getS = (key) => n(hodData[key] ?? faculty[key]);
-
-    const lec = (faculty.lectures || []).reduce((a, _, i) => a + get("lectures", i, "hod"), 0);
-    const cf = get("courseFile", null, "hod");
-    const innov = getS("innovHod");
-    const proj = (faculty.projects || []).reduce((a, _, i) => a + get("projects", i, "hod"), 0);
-    const qual = (faculty.quals || []).reduce((a, _, i) => a + get("quals", i, "hod"), 0);
-    const fb = (faculty.feedback || []).reduce((a, _, i) => a + get("feedback", i, "hod"), 0);
-    const dept = (faculty.deptActs || []).reduce((a, _, i) => a + get("deptActs", i, "hod"), 0);
-    const uni = (faculty.uniActs || []).reduce((a, _, i) => a + get("uniActs", i, "hod"), 0);
-    const soc = (faculty.society || []).reduce((a, _, i) => a + get("society", i, "hod"), 0);
-    const ind = (faculty.industry || []).reduce((a, _, i) => a + get("industry", i, "hod"), 0);
-    const acrT = (faculty.acr || []).reduce((a, _, i) => a + get("acr", i, "hod"), 0);
-    const partA = lec + cf + innov + proj + qual + fb + dept + uni + soc + ind + acrT;
-
-    const jour = (faculty.journals || []).reduce((a, _, i) => a + get("journals", i, "hod"), 0);
-    const bk = (faculty.books || []).reduce((a, _, i) => a + get("books", i, "hod"), 0);
-    const ictT = (faculty.ict || []).reduce((a, _, i) => a + get("ict", i, "hod"), 0);
-    const res = (faculty.research || []).reduce((a, _, i) => a + get("research", i, "hod"), 0);
-    const pat = (faculty.patents || []).reduce((a, _, i) => a + get("patents", i, "hod"), 0);
-    const awd = (faculty.awards || []).reduce((a, _, i) => a + get("awards", i, "hod"), 0);
-    const conf = (faculty.confs || []).reduce((a, _, i) => a + get("confs", i, "hod"), 0);
-    const prop = (faculty.proposals || []).reduce((a, _, i) => a + get("proposals", i, "hod"), 0);
-    const fdp = (faculty.fdps || []).reduce((a, _, i) => a + get("fdps", i, "hod"), 0);
-    const train = (faculty.training || []).reduce((a, _, i) => a + get("training", i, "hod"), 0);
-    const partB = jour + bk + ictT + res + pat + awd + conf + prop + fdp + train;
-
-    return { partA, partB, total: partA + partB };
-  };
-
-  const { partA, partB, total } = calcHodScore();
-  const g = grade(total, 575);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0, minHeight: "100%" }}>
-      {/* Header */}
-      <div style={{ background: "#0f172a", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 16, borderRadius: 10 }}>
-        <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontFamily: "Georgia, serif" }}>← Back</button>
-        <Avatar initials={faculty.avatar} color={faculty.avatarColor} size={40} />
-        <div style={{ flex: 1 }}>
-          <div style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 15 }}>{faculty.name}</div>
-          <div style={{ color: "#64748b", fontSize: 11 }}>{faculty.designation} · {faculty.employeeId}</div>
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>HOD Part A</div>
-            <div style={{ color: "#818cf8", fontWeight: 800, fontSize: 16 }}>{partA.toFixed(1)}</div>
-          </div>
-          <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>HOD Part B</div>
-            <div style={{ color: "#38bdf8", fontWeight: 800, fontSize: 16 }}>{partB.toFixed(1)}</div>
-          </div>
-          <div style={{ background: g.bg, border: `2px solid ${g.color}40`, borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: g.color, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700 }}>HOD Total</div>
-            <div style={{ color: g.color, fontWeight: 800, fontSize: 16 }}>{total.toFixed(1)}<span style={{ fontSize: 10, color: "#94a3b8" }}>/575</span></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab switcher */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-        {[["form", "📋 Review Form"], ["remarks", "✏️ Remarks & Submit"]].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{ padding: "7px 18px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700, background: tab === id ? "#312e81" : "#e2e8f0", color: tab === id ? "#e0e7ff" : "#475569" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "form" && <FacultyReviewForm faculty={faculty} hodData={hodData} setHodData={setHodData} />}
-
-      {tab === "remarks" && (
-        <div style={{ background: "#fff", borderRadius: 10, padding: "22px 24px", boxShadow: "0 1px 6px rgba(0,0,0,.06)" }}>
-          <h3 style={{ margin: "0 0 16px", color: "#0f172a", fontSize: 15 }}>HOD Remarks & Final Submission</h3>
-
-          {/* Score Summary */}
-          <table style={{ ...T, marginBottom: 18 }}>
-            <thead><tr>
-              <th style={TH}>Section</th><th style={TH}>Max</th>
-              <th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
-            </tr></thead>
-            <tbody>
-              {[
-                ["Part A — Teaching & Activities", 200, faculty.lectures?.reduce((a, r) => a + n(r.score), 0) || 0, partA],
-                ["Part B — Research & Contributions", 375, faculty.journals?.reduce((a, r) => a + n(r.score), 0) || 0, partB],
-              ].map(([label, max, fac, hod]) => (
-                <tr key={label}>
-                  <td style={TD}>{label}</td>
-                  <td style={TDC}>{max}</td>
-                  <td style={TDS}>{fac.toFixed(1)}</td>
-                  <td style={{ ...TDS_HOD, fontWeight: 700, color: "#312e81" }}>{hod.toFixed(1)}</td>
-                </tr>
-              ))}
-              <tr style={{ background: "#d1fae5", fontWeight: 700 }}>
-                <td style={TD}>Grand Total</td>
-                <td style={TDC}>575</td>
-                <td style={TDS}>—</td>
-                <td style={{ ...TDS_HOD, color: "#065f46", fontSize: 14 }}>{total.toFixed(1)}</td>
-              </tr>
-              <tr style={{ background: g.bg }}>
-                <td style={TD} colSpan={3}><strong>Grade</strong></td>
-                <td style={{ ...TDC, color: g.color, fontWeight: 800 }}>{g.label}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <label style={{ fontWeight: 700, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>HOD Remarks</label>
-          <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={4}
-            placeholder="Enter your remarks, observations, and recommendations for this faculty member..."
-            style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 7, padding: "10px 12px", fontSize: 12, fontFamily: "Georgia, serif", resize: "vertical", boxSizing: "border-box", marginBottom: 16 }} />
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button onClick={onBack} style={{ padding: "9px 22px", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "Georgia, serif" }}>Cancel</button>
-            <button onClick={() => onSubmit(faculty.id, total, remarks)}
-              style={{ padding: "10px 28px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>
-              ✔ Submit HOD Review
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
+// ─── ApprovalReviewPanel ──────────────────────────────────────────────────────
 function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
   const [deanData, setDeanData] = useState({});
   const [remarks, setRemarks] = useState(approval?.deanRemarks || "");
@@ -869,40 +839,39 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
     facultyApprovals: "Faculty Approval Review",
   };
 
-  // ── Compute Dean total from deanData (mirrors HOD calcHodScore) ──
   const calcDeanScore = () => {
     const get = (section, idx, field) => {
       if (deanData[section]) {
         const s = deanData[section];
         return idx === null ? n(s[field]) : n(s[idx]?.[field]);
       }
-      return idx === null ? n(approval[section]?.[field]) : n(approval[section]?.[idx]?.[field]);
+      return 0;
     };
-    const getS = (key) => n(deanData[key] ?? approval[key]);
+    const getS = (key) => n(deanData[key] ?? 0);
 
-    const lec  = (approval.lectures  || []).reduce((a, _, i) => a + get("lectures",  i, "hod"), 0);
-    const cf   = get("courseFile", null, "hod");
-    const innov = getS("innovHod");
-    const proj = (approval.projects  || []).reduce((a, _, i) => a + get("projects",  i, "hod"), 0);
-    const qual = (approval.quals     || []).reduce((a, _, i) => a + get("quals",     i, "hod"), 0);
-    const fb   = (approval.feedback  || []).reduce((a, _, i) => a + get("feedback",  i, "hod"), 0);
-    const dept = (approval.deptActs  || []).reduce((a, _, i) => a + get("deptActs",  i, "hod"), 0);
-    const uni  = (approval.uniActs   || []).reduce((a, _, i) => a + get("uniActs",   i, "hod"), 0);
-    const soc  = (approval.society   || []).reduce((a, _, i) => a + get("society",   i, "hod"), 0);
-    const ind  = (approval.industry  || []).reduce((a, _, i) => a + get("industry",  i, "hod"), 0);
-    const acrT = (approval.acr       || []).reduce((a, _, i) => a + get("acr",       i, "hod"), 0);
+    const lec   = (approval.lectures  || []).reduce((a, _, i) => a + get("lectures",  i, "dean"), 0);
+    const cf    = get("courseFile", null, "dean");
+    const innov = getS("innovDean");
+    const proj  = (approval.projects  || []).reduce((a, _, i) => a + get("projects",  i, "dean"), 0);
+    const qual  = (approval.quals     || []).reduce((a, _, i) => a + get("quals",     i, "dean"), 0);
+    const fb    = (approval.feedback  || []).reduce((a, _, i) => a + get("feedback",  i, "dean"), 0);
+    const dept  = (approval.deptActs  || []).reduce((a, _, i) => a + get("deptActs",  i, "dean"), 0);
+    const uni   = (approval.uniActs   || []).reduce((a, _, i) => a + get("uniActs",   i, "dean"), 0);
+    const soc   = (approval.society   || []).reduce((a, _, i) => a + get("society",   i, "dean"), 0);
+    const ind   = (approval.industry  || []).reduce((a, _, i) => a + get("industry",  i, "dean"), 0);
+    const acrT  = (approval.acr       || []).reduce((a, _, i) => a + get("acr",       i, "dean"), 0);
     const partA = lec + cf + innov + proj + qual + fb + dept + uni + soc + ind + acrT;
 
-    const jour  = (approval.journals  || []).reduce((a, _, i) => a + get("journals",  i, "hod"), 0);
-    const bk    = (approval.books     || []).reduce((a, _, i) => a + get("books",     i, "hod"), 0);
-    const ictT  = (approval.ict       || []).reduce((a, _, i) => a + get("ict",       i, "hod"), 0);
-    const res   = (approval.research  || []).reduce((a, _, i) => a + get("research",  i, "hod"), 0);
-    const pat   = (approval.patents   || []).reduce((a, _, i) => a + get("patents",   i, "hod"), 0);
-    const awd   = (approval.awards    || []).reduce((a, _, i) => a + get("awards",    i, "hod"), 0);
-    const conf  = (approval.confs     || []).reduce((a, _, i) => a + get("confs",     i, "hod"), 0);
-    const prop  = (approval.proposals || []).reduce((a, _, i) => a + get("proposals", i, "hod"), 0);
-    const fdp   = (approval.fdps      || []).reduce((a, _, i) => a + get("fdps",      i, "hod"), 0);
-    const train = (approval.training  || []).reduce((a, _, i) => a + get("training",  i, "hod"), 0);
+    const jour  = (approval.journals  || []).reduce((a, _, i) => a + get("journals",  i, "dean"), 0);
+    const bk    = (approval.books     || []).reduce((a, _, i) => a + get("books",     i, "dean"), 0);
+    const ictT  = (approval.ict       || []).reduce((a, _, i) => a + get("ict",       i, "dean"), 0);
+    const res   = (approval.research  || []).reduce((a, _, i) => a + get("research",  i, "dean"), 0);
+    const pat   = (approval.patents   || []).reduce((a, _, i) => a + get("patents",   i, "dean"), 0);
+    const awd   = (approval.awards    || []).reduce((a, _, i) => a + get("awards",    i, "dean"), 0);
+    const conf  = (approval.confs     || []).reduce((a, _, i) => a + get("confs",     i, "dean"), 0);
+    const prop  = (approval.proposals || []).reduce((a, _, i) => a + get("proposals", i, "dean"), 0);
+    const fdp   = (approval.fdps      || []).reduce((a, _, i) => a + get("fdps",      i, "dean"), 0);
+    const train = (approval.training  || []).reduce((a, _, i) => a + get("training",  i, "dean"), 0);
     const partB = jour + bk + ictT + res + pat + awd + conf + prop + fdp + train;
 
     return { partA, partB, total: partA + partB };
@@ -913,8 +882,7 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, minHeight: "100%" }}>
-
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ background: "#0f172a", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 16, borderRadius: 10 }}>
         <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontFamily: "Georgia, serif" }}>← Back</button>
         <Avatar initials={approval.avatar} color={approval.avatarColor} size={40} />
@@ -927,61 +895,61 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Part A</div>
-            <div style={{ color: "#818cf8", fontWeight: 800, fontSize: 16 }}>{partA.toFixed(1)}</div>
+            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Dean Part A</div>
+            <div style={{ color: "#a7f3d0", fontWeight: 800, fontSize: 16 }}>{partA.toFixed(1)}</div>
           </div>
           <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Part B</div>
-            <div style={{ color: "#38bdf8", fontWeight: 800, fontSize: 16 }}>{partB.toFixed(1)}</div>
+            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Dean Part B</div>
+            <div style={{ color: "#a7f3d0", fontWeight: 800, fontSize: 16 }}>{partB.toFixed(1)}</div>
           </div>
           <div style={{ background: g.bg, border: `2px solid ${g.color}40`, borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
-            <div style={{ color: g.color, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700 }}>Total</div>
+            <div style={{ color: g.color, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700 }}>Dean Total</div>
             <div style={{ color: g.color, fontWeight: 800, fontSize: 16 }}>{total.toFixed(1)}<span style={{ fontSize: 10, color: "#94a3b8" }}>/575</span></div>
           </div>
         </div>
       </div>
 
-      {/* ── Tab Switcher ── */}
+      {/* Tab Switcher */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         {[["form", "📋 Review Form"], ["remarks", "✏️ Remarks & Submit"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: "7px 18px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700, background: tab === id ? "#312e81" : "#e2e8f0", color: tab === id ? "#e0e7ff" : "#475569" }}>
+            style={{ padding: "7px 18px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700, background: tab === id ? "#065f46" : "#e2e8f0", color: tab === id ? "#a7f3d0" : "#475569" }}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* ── Review Form Tab ── */}
-      {tab === "form" && <FacultyReviewForm faculty={approval} hodData={deanData} setHodData={setDeanData} />}
+      {/* Review Form Tab */}
+      {tab === "form" && (
+        <FacultyReviewForm faculty={approval} deanData={deanData} setDeanData={setDeanData} />
+      )}
 
-      {/* ── Remarks & Submit Tab ── */}
+      {/* Remarks & Submit Tab */}
       {tab === "remarks" && (
         <div style={{ background: "#fff", borderRadius: 10, padding: "22px 24px", boxShadow: "0 1px 6px rgba(0,0,0,.06)" }}>
           <h3 style={{ margin: "0 0 16px", color: "#0f172a", fontSize: 15 }}>Dean Remarks & Final Submission</h3>
-
-          {/* Score Summary */}
           <table style={{ ...T, marginBottom: 18 }}>
             <thead><tr>
               <th style={TH}>Section</th><th style={TH}>Max</th>
-              <th style={TH}>Faculty Score</th><th style={TH_HOD}>Dean Score</th>
+              <th style={TH}>Faculty Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
               {[
-                ["Part A — Teaching & Activities",      200, approval.lectures?.reduce((a, r) => a + n(r.score), 0) || 0, partA],
-                ["Part B — Research & Contributions",   375, approval.journals?.reduce((a, r) => a + n(r.score), 0) || 0, partB],
+                ["Part A — Teaching & Activities",    200, approval.lectures?.reduce((a, r) => a + n(r.score), 0) || 0, partA],
+                ["Part B — Research & Contributions", 375, approval.journals?.reduce((a, r) => a + n(r.score), 0) || 0, partB],
               ].map(([label, max, fac, dean]) => (
                 <tr key={label}>
                   <td style={TD}>{label}</td>
                   <td style={TDC}>{max}</td>
                   <td style={TDS}>{fac.toFixed(1)}</td>
-                  <td style={{ ...TDS_HOD, fontWeight: 700, color: "#312e81" }}>{dean.toFixed(1)}</td>
+                  <td style={{ ...TDS_DEAN, fontWeight: 700, color: "#065f46" }}>{dean.toFixed(1)}</td>
                 </tr>
               ))}
               <tr style={{ background: "#d1fae5", fontWeight: 700 }}>
                 <td style={TD}>Grand Total</td>
                 <td style={TDC}>575</td>
                 <td style={TDS}>—</td>
-                <td style={{ ...TDS_HOD, color: "#065f46", fontSize: 14 }}>{total.toFixed(1)}</td>
+                <td style={{ ...TDS_DEAN, color: "#065f46", fontSize: 14 }}>{total.toFixed(1)}</td>
               </tr>
               <tr style={{ background: g.bg }}>
                 <td style={TD} colSpan={3}><strong>Grade</strong></td>
