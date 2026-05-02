@@ -859,49 +859,151 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
 }
 
 function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
-  const [remarks, setRemarks] = useState(approval?.deanRemarks || approval?.directorRemarks || approval?.hodRemarks || "");
+  const [deanData, setDeanData] = useState({});
+  const [remarks, setRemarks] = useState(approval?.deanRemarks || "");
+  const [tab, setTab] = useState("form");
+
   const titleMap = {
     hodApprovals: "HOD Approval Review",
     directorApprovals: "Director Approval Review",
     facultyApprovals: "Faculty Approval Review",
   };
-  const scoreKey = approvalType === "hodApprovals" ? "directorTotal" : approvalType === "directorApprovals" ? "deanTotal" : "hodTotal";
-  const scoreLabel = approvalType === "hodApprovals" ? "Director Total" : approvalType === "directorApprovals" ? "Dean Total" : "HOD Total";
+
+  // ── Compute Dean total from deanData (mirrors HOD calcHodScore) ──
+  const calcDeanScore = () => {
+    const get = (section, idx, field) => {
+      if (deanData[section]) {
+        const s = deanData[section];
+        return idx === null ? n(s[field]) : n(s[idx]?.[field]);
+      }
+      return idx === null ? n(approval[section]?.[field]) : n(approval[section]?.[idx]?.[field]);
+    };
+    const getS = (key) => n(deanData[key] ?? approval[key]);
+
+    const lec  = (approval.lectures  || []).reduce((a, _, i) => a + get("lectures",  i, "hod"), 0);
+    const cf   = get("courseFile", null, "hod");
+    const innov = getS("innovHod");
+    const proj = (approval.projects  || []).reduce((a, _, i) => a + get("projects",  i, "hod"), 0);
+    const qual = (approval.quals     || []).reduce((a, _, i) => a + get("quals",     i, "hod"), 0);
+    const fb   = (approval.feedback  || []).reduce((a, _, i) => a + get("feedback",  i, "hod"), 0);
+    const dept = (approval.deptActs  || []).reduce((a, _, i) => a + get("deptActs",  i, "hod"), 0);
+    const uni  = (approval.uniActs   || []).reduce((a, _, i) => a + get("uniActs",   i, "hod"), 0);
+    const soc  = (approval.society   || []).reduce((a, _, i) => a + get("society",   i, "hod"), 0);
+    const ind  = (approval.industry  || []).reduce((a, _, i) => a + get("industry",  i, "hod"), 0);
+    const acrT = (approval.acr       || []).reduce((a, _, i) => a + get("acr",       i, "hod"), 0);
+    const partA = lec + cf + innov + proj + qual + fb + dept + uni + soc + ind + acrT;
+
+    const jour  = (approval.journals  || []).reduce((a, _, i) => a + get("journals",  i, "hod"), 0);
+    const bk    = (approval.books     || []).reduce((a, _, i) => a + get("books",     i, "hod"), 0);
+    const ictT  = (approval.ict       || []).reduce((a, _, i) => a + get("ict",       i, "hod"), 0);
+    const res   = (approval.research  || []).reduce((a, _, i) => a + get("research",  i, "hod"), 0);
+    const pat   = (approval.patents   || []).reduce((a, _, i) => a + get("patents",   i, "hod"), 0);
+    const awd   = (approval.awards    || []).reduce((a, _, i) => a + get("awards",    i, "hod"), 0);
+    const conf  = (approval.confs     || []).reduce((a, _, i) => a + get("confs",     i, "hod"), 0);
+    const prop  = (approval.proposals || []).reduce((a, _, i) => a + get("proposals", i, "hod"), 0);
+    const fdp   = (approval.fdps      || []).reduce((a, _, i) => a + get("fdps",      i, "hod"), 0);
+    const train = (approval.training  || []).reduce((a, _, i) => a + get("training",  i, "hod"), 0);
+    const partB = jour + bk + ictT + res + pat + awd + conf + prop + fdp + train;
+
+    return { partA, partB, total: partA + partB };
+  };
+
+  const { partA, partB, total } = calcDeanScore();
+  const g = grade(total, 575);
 
   return (
-    <div style={{ background: "#fff", borderRadius: 14, padding: "24px", boxShadow: "0 18px 45px rgba(15,23,42,0.18)", minHeight: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-        <button onClick={onBack} style={{ border: "none", background: "#e2e8f0", color: "#0f172a", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>← Back</button>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{titleMap[approvalType]}</div>
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{approval.name} · {approval.designation}</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, minHeight: "100%" }}>
+
+      {/* ── Header ── */}
+      <div style={{ background: "#0f172a", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 16, borderRadius: 10 }}>
+        <button onClick={onBack} style={{ background: "#1e293b", border: "none", color: "#94a3b8", cursor: "pointer", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontFamily: "Georgia, serif" }}>← Back</button>
+        <Avatar initials={approval.avatar} color={approval.avatarColor} size={40} />
+        <div style={{ flex: 1 }}>
+          <div style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 15 }}>{approval.name}</div>
+          <div style={{ color: "#64748b", fontSize: 11 }}>{approval.designation} · {approval.employeeId}</div>
+        </div>
+        <div style={{ background: "#1e293b", borderRadius: 6, padding: "4px 10px", marginRight: 6 }}>
+          <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>{titleMap[approvalType]}</div>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Part A</div>
+            <div style={{ color: "#818cf8", fontWeight: 800, fontSize: 16 }}>{partA.toFixed(1)}</div>
+          </div>
+          <div style={{ background: "#1e293b", borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ color: "#94a3b8", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6 }}>Part B</div>
+            <div style={{ color: "#38bdf8", fontWeight: 800, fontSize: 16 }}>{partB.toFixed(1)}</div>
+          </div>
+          <div style={{ background: g.bg, border: `2px solid ${g.color}40`, borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
+            <div style={{ color: g.color, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700 }}>Total</div>
+            <div style={{ color: g.color, fontWeight: 800, fontSize: 16 }}>{total.toFixed(1)}<span style={{ fontSize: 10, color: "#94a3b8" }}>/575</span></div>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: 20 }}>
-        {[
-          { label: "Employee ID", value: approval.employeeId },
-          { label: "Submitted", value: approval.submittedOn },
-          { label: scoreLabel, value: approval[scoreKey] ?? 0 },
-        ].map((item) => (
-          <div key={item.label} style={{ background: "#f8fafc", borderRadius: 12, padding: "18px 16px" }}>
-            <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.7 }}>{item.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>{item.value}</div>
-          </div>
+      {/* ── Tab Switcher ── */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {[["form", "📋 Review Form"], ["remarks", "✏️ Remarks & Submit"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ padding: "7px 18px", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "Georgia, serif", fontSize: 12, fontWeight: 700, background: tab === id ? "#312e81" : "#e2e8f0", color: tab === id ? "#e0e7ff" : "#475569" }}>
+            {label}
+          </button>
         ))}
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Dean Remarks</div>
-        <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={7}
-          style={{ width: "100%", borderRadius: 12, border: "1px solid #cbd5e1", padding: "14px", fontFamily: "Georgia, serif", fontSize: 13, color: "#1f2937", resize: "vertical" }}
-        />
-      </div>
+      {/* ── Review Form Tab ── */}
+      {tab === "form" && <FacultyReviewForm faculty={approval} hodData={deanData} setHodData={setDeanData} />}
 
-      <div style={{ display: "flex", gap: 12 }}>
-        <button onClick={onBack} style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
-        <button onClick={() => onSubmit(approval.id, remarks)} style={{ flex: 1, padding: "12px 16px", borderRadius: 10, border: "none", background: "#0f172a", color: "#f8fafc", fontWeight: 700, cursor: "pointer" }}>Submit Review</button>
-      </div>
+      {/* ── Remarks & Submit Tab ── */}
+      {tab === "remarks" && (
+        <div style={{ background: "#fff", borderRadius: 10, padding: "22px 24px", boxShadow: "0 1px 6px rgba(0,0,0,.06)" }}>
+          <h3 style={{ margin: "0 0 16px", color: "#0f172a", fontSize: 15 }}>Dean Remarks & Final Submission</h3>
+
+          {/* Score Summary */}
+          <table style={{ ...T, marginBottom: 18 }}>
+            <thead><tr>
+              <th style={TH}>Section</th><th style={TH}>Max</th>
+              <th style={TH}>Faculty Score</th><th style={TH_HOD}>Dean Score</th>
+            </tr></thead>
+            <tbody>
+              {[
+                ["Part A — Teaching & Activities",      200, approval.lectures?.reduce((a, r) => a + n(r.score), 0) || 0, partA],
+                ["Part B — Research & Contributions",   375, approval.journals?.reduce((a, r) => a + n(r.score), 0) || 0, partB],
+              ].map(([label, max, fac, dean]) => (
+                <tr key={label}>
+                  <td style={TD}>{label}</td>
+                  <td style={TDC}>{max}</td>
+                  <td style={TDS}>{fac.toFixed(1)}</td>
+                  <td style={{ ...TDS_HOD, fontWeight: 700, color: "#312e81" }}>{dean.toFixed(1)}</td>
+                </tr>
+              ))}
+              <tr style={{ background: "#d1fae5", fontWeight: 700 }}>
+                <td style={TD}>Grand Total</td>
+                <td style={TDC}>575</td>
+                <td style={TDS}>—</td>
+                <td style={{ ...TDS_HOD, color: "#065f46", fontSize: 14 }}>{total.toFixed(1)}</td>
+              </tr>
+              <tr style={{ background: g.bg }}>
+                <td style={TD} colSpan={3}><strong>Grade</strong></td>
+                <td style={{ ...TDC, color: g.color, fontWeight: 800 }}>{g.label}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <label style={{ fontWeight: 700, fontSize: 13, color: "#334155", display: "block", marginBottom: 6 }}>Dean Remarks</label>
+          <textarea value={remarks} onChange={e => setRemarks(e.target.value)} rows={4}
+            placeholder="Enter your remarks, observations, and recommendations..."
+            style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 7, padding: "10px 12px", fontSize: 12, fontFamily: "Georgia, serif", resize: "vertical", boxSizing: "border-box", marginBottom: 16 }} />
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button onClick={onBack} style={{ padding: "9px 22px", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "Georgia, serif" }}>Cancel</button>
+            <button onClick={() => onSubmit(approval.id, remarks)}
+              style={{ padding: "10px 28px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>
+              ✔ Submit Dean Review
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1064,7 +1166,7 @@ export default function DeanDashboard() {
 
   // ── Computed scores for HOD appraisal ──
   const totalLecScore = lectures.reduce((a, r) => a + n(r.score), 0);
-  const courseFileScore = n(courseFile.score);
+  const courseFileScore = courseFile.reduce((a, r) => a + n(r.score), 0);
   const innovTotal = n(innovScore);
   const projectTotal = projects.reduce((a, r) => a + n(r.score), 0);
   const qualTotal = quals.reduce((a, r) => a + n(r.score), 0);
@@ -1093,11 +1195,11 @@ export default function DeanDashboard() {
 
   const gradeFunc = () => {
     const p = pct(grandTotal, 575);
-    if (p >= 85) return { label: "Outstanding", color: "#10b981" };
-    if (p >= 70) return { label: "Very Good", color: "#3b82f6" };
-    if (p >= 55) return { label: "Good", color: "#f59e0b" };
-    if (p >= 40) return { label: "Satisfactory", color: "#f97316" };
-    return { label: "Needs Improvement", color: "#ef4444" };
+    if (p >= 85) return { label: "Outstanding", color: "#059669", bg: "#d1fae5" };
+    if (p >= 70) return { label: "Very Good", color: "#0284c7", bg: "#dbeafe" };
+    if (p >= 55) return { label: "Good", color: "#7c3aed", bg: "#ede9fe" };
+    if (p >= 40) return { label: "Satisfactory", color: "#d97706", bg: "#fef3c7" };
+    return { label: "Needs Improvement", color: "#dc2626", bg: "#fee2e2" };
   };
   const g = gradeFunc();
 
@@ -1221,12 +1323,7 @@ export default function DeanDashboard() {
     <h3>A2: Course File</h3>
     <table>
       <tr><th>Course</th><th>Title</th><th>Details</th><th>Score</th></tr>
-      <tr>
-        <td>${courseFile.course || "&nbsp;"}</td>
-        <td>${courseFile.title || "&nbsp;"}</td>
-        <td>${courseFile.details || "&nbsp;"}</td>
-        <td class="center">${courseFile.score || "&nbsp;"}</td>
-      </tr>
+      ${courseFile.map(cf => `<tr><td>${cf.course || "&nbsp;"}</td><td>${cf.title || "&nbsp;"}</td><td>${cf.details || "&nbsp;"}</td><td class="center">${cf.score || "&nbsp;"}</td></tr>`).join('')}
     </table>
 
     <!-- A3 -->

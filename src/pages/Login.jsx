@@ -58,7 +58,7 @@ export default function Login() {
         {/* ── LEFT: Branding ───────────────────────────────────────────────── */}
         <div style={s.left}>
           <div style={s.logoBox}>
-            <img src="/dypiu.jpeg" alt="University Logo" style={{ height: 60 }} />
+            <img src="/logo.png" alt="University Logo" style={{ height: 60 }} />
           </div>
           <h2 style={s.heading}>{APP_INFO.UNIVERSITY_NAME}, {APP_INFO.UNIVERSITY_LOCATION}</h2>
           <p style={s.desc}>
