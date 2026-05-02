@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
 import { HodInput } from "../components/Inputs";
-import { DEAN_USER } from "../data/mockData";
 import { getStaffForDean } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -273,21 +273,24 @@ function FacultyReviewForm({ faculty, deanData, setDeanData }) {
         <div style={{ overflowX: "auto" }}>
           <table style={T}>
             <thead><tr>
-              <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
+              <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
               <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th>
               <th style={TH_HOD}>HOD Score</th><th style={TH_DIR}>Director Score</th><th style={TH_DEAN}>Dean Score</th>
             </tr></thead>
             <tbody>
-              <tr>
-                <td style={TD}><RO val={courseFile?.course} /></td>
-                <td style={TD}><RO val={courseFile?.title} /></td>
-                <td style={TDC}><RO val={courseFile?.details} center /></td>
-                <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-                <td style={TDS}><RO val={courseFile?.score} center /></td>
-                <td style={TDS_HOD}><RO val={courseFile?.hod} center /></td>
-                <td style={TDS_DIR}><RO val={courseFile?.director} center /></td>
-                <td style={TDS_DEAN}><DeanInput val={get("courseFile", null, "dean")} onChange={v => set("courseFile", null, "dean", v)} /></td>
-              </tr>
+              {rows(courseFile).map((r, i) => (
+                <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                  <td style={TDC}>{i + 1}</td>
+                  <td style={TD}><RO val={r.course} /></td>
+                  <td style={TD}><RO val={r.title} /></td>
+                  <td style={TDC}><RO val={r.details} center /></td>
+                  <td style={TDV}><ViewDocsCell docKey={`cf-${i}`} docs={docs} /></td>
+                  <td style={TDS}><RO val={r.score} center /></td>
+                  <td style={TDS_HOD}><RO val={r.hod} center /></td>
+                  <td style={TDS_DIR}><RO val={r.director} center /></td>
+                  <td style={TDS_DEAN}><DeanInput val={get("courseFile", i, "dean")} onChange={v => set("courseFile", i, "dean", v)} /></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -850,7 +853,7 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
     const getS = (key) => n(deanData[key] ?? 0);
 
     const lec   = (approval.lectures  || []).reduce((a, _, i) => a + get("lectures",  i, "dean"), 0);
-    const cf    = get("courseFile", null, "dean");
+    const cf    = (approval.courseFile || []).reduce((a, _, i) => a + get("courseFile", i, "dean"), 0);
     const innov = getS("innovDean");
     const proj  = (approval.projects  || []).reduce((a, _, i) => a + get("projects",  i, "dean"), 0);
     const qual  = (approval.quals     || []).reduce((a, _, i) => a + get("quals",     i, "dean"), 0);
@@ -979,28 +982,50 @@ function ApprovalReviewPanel({ approval, approvalType, onBack, onSubmit }) {
 // ─── Main Dean Dashboard ───────────────────────────────────────────────────────
 export default function DeanDashboard() {
   const navigate = useNavigate();
+  const { user, userRole, userData } = useAuth();
+  const meta = user?.user_metadata || {};
+
   const [activeMainTab, setActiveMainTab] = useState("myAppraisal");
   const [hodAppraisalTab, setHodAppraisalTab] = useState("partA");
   const [reviewingApproval, setReviewingApproval] = useState(null);
   
-  const deanSchool = localStorage.getItem("school");
+  const deanSchool = userData.school || localStorage.getItem("school");
   const [facultyList, setFacultyList] = useState([]);
   const [hodList, setHodList] = useState([]);
   const [directorList, setDirectorList] = useState([]);
 
   useEffect(() => {
-    const { faculty, hods, directors } = getStaffForDean(deanSchool);
-    setFacultyList(faculty);
-    setHodList(hods);
-    setDirectorList(directors);
+    const fetchStaff = async () => {
+      if (deanSchool) {
+        try {
+          const data = await getStaffForDean(deanSchool);
+          // Handle both array and object response from API/Mock
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            setFacultyList(data.faculty || []);
+            setHodList(data.hods || []);
+            setDirectorList(data.directors || []);
+          } else {
+            setFacultyList(Array.isArray(data) ? data : []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch staff for dean", err);
+        }
+      }
+    };
+    fetchStaff();
   }, [deanSchool]);
 
   const [filterStatus, setFilterStatus] = useState("All");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
 
-  // ── Dean's own appraisal form state ──
-  const [info, setInfo] = useState({ name: DEAN_USER.name, qual: "", desig: DEAN_USER.designation, ay: DEAN_USER.ay });
+  // ── User appraisal form state ──
+  const [info, setInfo] = useState({ 
+    name: meta.full_name || user?.email || "Dean", 
+    qual: meta.qualification || "", 
+    desig: meta.designation || "Dean", 
+    ay: "2025-26" 
+  });
   const inf = (k) => (v) => setInfo((p) => ({ ...p, [k]: v }));
 
   const [lectures, setLectures] = useState([
@@ -1011,6 +1036,7 @@ export default function DeanDashboard() {
   const setLec = (i, k, v) => setLectures((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
 
   const [courseFile, setCourseFile] = useState([{ course: "", title: "", details: "", score: "", hod: "", director: "" }]);
+  const setCF = (i, k, v) => setCourseFile((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
   const [innovScore, setInnovScore] = useState("");
   const [innovDetails, setInnovDetails] = useState("");
   const [projects, setProjects] = useState([
@@ -1517,10 +1543,10 @@ export default function DeanDashboard() {
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#1e293b" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar initials={DEAN_USER.avatar} color="#6366f1" size={34} />
+          <Avatar initials={meta.full_name ? meta.full_name.split(' ').map(n => n[0]).join('') : "D"} color="#6366f1" size={34} />
           <div style={{ flex: 1 }}>
-            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{DEAN_USER.name.split(" ").slice(0, 2).join(" ")}</div>
-            <div style={{ color: "#475569", fontSize: 9 }}>Dean · {DEAN_USER.department.split(" ")[0]}</div>
+            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{meta.full_name ? meta.full_name.split(" ").slice(0, 2).join(" ") : user?.email}</div>
+            <div style={{ color: "#475569", fontSize: 9 }}>Dean · {meta.department ? meta.department.split(" ")[0] : ""}</div>
           </div>
         </div>
         <button
@@ -1905,7 +1931,7 @@ export default function DeanDashboard() {
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
                           <td style={TD}>{r.label}</td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcr(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcrRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#eff6ff" }}>
@@ -2026,13 +2052,13 @@ export default function DeanDashboard() {
                       {ict.map((r, i) => (
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
-                          <td style={TD}><TI val={r.title} onChange={(v) => setIct(i, "title", v)} /></td>
-                          <td style={TD}><TI val={r.desc} onChange={(v) => setIct(i, "desc", v)} /></td>
-                          <td style={TD}><TI val={r.type} onChange={(v) => setIct(i, "type", v)} /></td>
-                          <td style={TD}><TI val={r.quad} onChange={(v) => setIct(i, "quad", v)} /></td>
+                          <td style={TD}><TI val={r.title} onChange={(v) => setIctRow(i, "title", v)} /></td>
+                          <td style={TD}><TI val={r.desc} onChange={(v) => setIctRow(i, "desc", v)} /></td>
+                          <td style={TD}><TI val={r.type} onChange={(v) => setIctRow(i, "type", v)} /></td>
+                          <td style={TD}><TI val={r.quad} onChange={(v) => setIctRow(i, "quad", v)} /></td>
                           <td style={TD}><DocCell id={`ict-${i}`} docs={docs} setDocs={setDocs} /></td>
                           <td style={TD}><ViewCell id={`ict-${i}`} docs={docs} /></td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setIct(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setIctRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#f3e8ff" }}>
@@ -2324,7 +2350,7 @@ export default function DeanDashboard() {
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a", letterSpacing: -0.5 }}>
                   {activeMainTab === "hodApprovals" ? "HOD Approvals" : activeMainTab === "directorApprovals" ? "Director Approvals" : "Faculty Approvals"}
                 </h1>
-                <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 11 }}>{DEAN_USER.department} · AY {DEAN_USER.ay}</p>
+                <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 11 }}>{meta.department || "University"} · AY 2025-26</p>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 20, background: "#fef3c7", color: "#92400e" }}>⏳ {pendingCount} Pending</div>

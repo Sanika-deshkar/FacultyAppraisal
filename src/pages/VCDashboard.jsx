@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStaffForVC } from "../services/api";
+import { VC_USER } from "../data/mockData";
 import { SOCIETY_LABELS, ACR_LABELS, MAX_SCORES, APP_INFO } from "../constants/formConfig";
-import { VC_USER, DEAN_LIST, DIRECTOR_LIST_VC, HOD_LIST_VC, FACULTY_LIST_VC } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -199,25 +200,21 @@ function VCReviewForm({ person, vcData, setVcData, personMode = "director" }) {
 
       {/* A2 Course File */}
       <SC title="A2. Course File (Max 20)" accent="#b45309">
-        <table style={T}><thead><tr>
-          <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th><th style={TH}>Docs</th>
-          {showHodCol && <><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th></>}
-          {!showHodCol && <th style={TH}>Self Score</th>}
-          {showDirCol && <th style={TH_DIR}>Dir Score</th>}
-          <th style={TH_DEAN}>Dean Score</th>
-          <th style={TH_VC}>VC Score</th>
-        </tr></thead>
-        <tbody><tr>
-          <td style={TD}><RO val={person.courseFile?.course} /></td>
-          <td style={TD}><RO val={person.courseFile?.title} /></td>
-          <td style={TDC}><RO val={person.courseFile?.details} center /></td>
-          <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-          {showHodCol && <><td style={TDS}><RO val={person.courseFile?.score} center /></td><td style={TDS_HOD}><RO val={person.courseFile?.hod} center /></td></>}
-          {!showHodCol && <td style={TDS}><RO val={person.courseFile?.score} center /></td>}
-          {showDirCol && <td style={TDS_DIR}><RO val={person.courseFile?.director} center /></td>}
-          <td style={TDS_DEAN}><RO val={person.courseFile?.dean || person.courseFile?.score} center /></td>
-          <td style={TDS_VC}><VCInput val={get("courseFile", null, "vc")} onChange={v => set("courseFile", null, "vc", v)} /></td>
-        </tr></tbody></table>
+        <div style={{ overflowX: "auto" }}>
+          <table style={T}><thead><tr>
+            <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th><th style={TH}>Docs</th>
+            {buildScoreHeaders()}
+          </tr></thead>
+          <tbody>{rows(person.courseFile).map((r, i) => (
+            <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+              <td style={TD}><RO val={r.course} /></td>
+              <td style={TD}><RO val={r.title} /></td>
+              <td style={TDC}><RO val={r.details} center /></td>
+              <td style={TDV}><ViewDocsCell docKey={`cf-${i}`} docs={docs} /></td>
+              {buildScoreCells(r, "courseFile", i)}
+            </tr>
+          ))}</tbody></table>
+        </div>
       </SC>
 
       {/* A3 Innovative */}
@@ -441,7 +438,7 @@ function calcVCScore(person, vcData) {
   const getS = (key) => n(vcData[key] ?? person[key]);
   const sum = (arr, s, f) => (arr || []).reduce((a, _, i) => a + get(s, i, f), 0);
 
-  const partA = sum(person.lectures, "lectures", "vc") + get("courseFile", null, "vc") +
+  const partA = sum(person.lectures, "lectures", "vc") + sum(person.courseFile, "courseFile", "vc") +
     getS("innovVC") + sum(person.projects, "projects", "vc") +
     sum(person.quals, "quals", "vc") + sum(person.feedback, "feedback", "vc") +
     sum(person.deptActs, "deptActs", "vc") + sum(person.uniActs, "uniActs", "vc") +
@@ -719,6 +716,8 @@ function VCReviewPanel({ person, personMode, onBack, onSubmit }) {
 // ─── Main VC Dashboard ────────────────────────────────────────────────────────
 export default function VCDashboard() {
   const navigate = useNavigate();
+  const { user, userRole, userData } = useAuth();
+  const meta = user?.user_metadata || {};
   const [activeTab, setActiveTab] = useState("analytics");
   const [reviewing, setReviewing] = useState(null); // { person, personMode }
   const [deanList, setDeanList] = useState([]);
@@ -727,11 +726,24 @@ export default function VCDashboard() {
   const [facList, setFacList] = useState([]);
 
   useEffect(() => {
-    const { faculty, hods, directors, deans } = getStaffForVC();
-    setFacList(faculty);
-    setHodList(hods);
-    setDirList(directors);
-    setDeanList(deans);
+    const fetchStaff = async () => {
+      try {
+        const data = await getStaffForVC();
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          setFacList(data.faculty || []);
+          setHodList(data.hods || []);
+          setDirList(data.directors || []);
+          setDeanList(data.deans || []);
+        } else {
+          // If it returns an array, we might not know which role it's for, 
+          // but for VC we expect a structured object.
+          setFacList(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch staff for VC", err);
+      }
+    };
+    fetchStaff();
   }, []);
 
   const [filterStatus, setFilterStatus] = useState("All");
@@ -795,9 +807,9 @@ export default function VCDashboard() {
         <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
         
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px" }}>
-          <Avatar initials={VC_USER.avatar} color="#b45309" size={38} />
+          <Avatar initials={meta.full_name ? meta.full_name.split(' ').map(n => n[0]).join('') : VC_USER.avatar} color="#b45309" size={38} />
           <div>
-            <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{VC_USER.name}</div>
+            <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{meta.full_name || VC_USER.name}</div>
             <div style={{ color: "#64748b", fontSize: 10 }}>VC · {APP_INFO.SHORT_NAME}</div>
           </div>
         </div>

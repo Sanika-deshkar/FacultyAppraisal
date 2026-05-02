@@ -1,43 +1,95 @@
-import { FACULTY_LIST, HOD_LIST, DIRECTOR_LIST, DEAN_LIST } from "../data/mockData";
-import { SCHOOL_CONFIG } from "../constants/formConfig";
+import axios from 'axios';
 
-export const getFacultyForHOD = (hodDepartment, hodSchool) => {
-  return FACULTY_LIST.filter(f => f.department === hodDepartment && f.school === hodSchool);
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Helper to check if we are using a temporary mock user
+const isMockMode = () => {
+  const token = localStorage.getItem('token');
+  return token && token.startsWith('mock-token-');
 };
 
-export const getStaffForDirector = (directorSchool) => {
-  const hasHod = SCHOOL_CONFIG[directorSchool]?.hasHod ?? true;
-  const faculty = FACULTY_LIST.filter(f => f.school === directorSchool);
-  
-  // If school has no HOD, director sees faculty pending approval directly
-  // Otherwise, director might only see them after HOD review (or all of them)
-  // For now, let's return all faculty and HODs in that school
-  const hods = HOD_LIST.filter(h => h.school === directorSchool);
-  
-  return { faculty, hods: hasHod ? hods : [] };
+// Request interceptor to add the auth token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Auth Services
+export const login = async (username, password) => {
+  const response = await apiClient.post('/auth/login', { username, password });
+  return response.data;
 };
 
-export const getStaffForDean = (deanSchool) => {
-  const faculty = FACULTY_LIST.filter(f => f.school === deanSchool);
-  const hods = HOD_LIST.filter(h => h.school === deanSchool);
-  const directors = DIRECTOR_LIST.filter(d => d.school === deanSchool);
-  
-  return { faculty, hods, directors };
+// Appraisal Services
+export const submitDeclaration = async (data) => {
+  if (isMockMode()) {
+    console.log("Simulating Declaration Submission (Mock Mode)", data);
+    return new Promise(resolve => setTimeout(() => resolve({ status: "success", message: "Mock submission successful" }), 800));
+  }
+  const response = await apiClient.post('/declaration', data);
+  return response.data;
 };
 
-export const getStaffForVC = () => {
-  return {
-    faculty: FACULTY_LIST,
-    hods: HOD_LIST,
-    directors: DIRECTOR_LIST,
-    deans: DEAN_LIST
-  };
+export const submitEnclosures = async (formData) => {
+  if (isMockMode()) {
+    console.log("Simulating Enclosure Submission (Mock Mode)");
+    return new Promise(resolve => setTimeout(() => resolve({ status: "success" }), 800));
+  }
+  const response = await apiClient.post('/enclosures', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
 };
 
-export const fetchFormData = async () => {
-  return JSON.parse(localStorage.getItem("formData")) || {};
+export const getAppraisalSummary = async (facultyId) => {
+  if (isMockMode()) return { scores: {} };
+  const response = await apiClient.get(`/appraisal-summary/${facultyId}`);
+  return response.data;
 };
 
-export const saveFormData = async (data) => {
-  localStorage.setItem("formData", JSON.stringify(data));
+export const getSubordinates = async () => {
+  if (isMockMode()) return [];
+  const response = await apiClient.get('/dashboard/subordinates');
+  return response.data;
 };
+
+// Backward Compatibility Aliases
+export const getStaffForDean = getSubordinates;
+export const getStaffForVC = getSubordinates;
+export const getStaffForDirector = getSubordinates;
+export const getFacultyForHOD = getSubordinates;
+
+export const submitHodReview = async (facultyId, data) => {
+  if (isMockMode()) {
+    console.log("Simulating HOD Review Submission (Mock Mode)", facultyId, data);
+    return new Promise(resolve => setTimeout(() => resolve({ status: "success" }), 800));
+  }
+  const response = await apiClient.put(`/appraisal-remarks/hod/${facultyId}`, data);
+  return response.data;
+};
+
+export const submitDirectorReview = async (facultyId, data) => {
+  if (isMockMode()) {
+    console.log("Simulating Director Review Submission (Mock Mode)", facultyId, data);
+    return new Promise(resolve => setTimeout(() => resolve({ status: "success" }), 800));
+  }
+  const response = await apiClient.put(`/appraisal-remarks/director/${facultyId}`, data);
+  return response.data;
+};
+
+export default apiClient;

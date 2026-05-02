@@ -1,9 +1,11 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { APP_INFO } from "../constants/formConfig";
+import { submitDeclaration } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
-const HOD_USER = {
+const HOD_USER_MOCK = {
   name: "", employeeId: "",
   designation: "",
   department: "",
@@ -877,15 +879,62 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
   );
 }
 
-// ─── Main HOD Dashboard ───────────────────────────────────────────────────────
-export default function HODDashboard() {
+// ─── Main Faculty Dashboard ───────────────────────────────────────────────────────
+export default function Dashboard() {
   const navigate = useNavigate();
+  const { user, userRole, userData } = useAuth();
+  const meta = user?.user_metadata || {};
+
+  // ── Submission State ──
+  const [declPlace, setDeclPlace] = useState("");
+  const [isDeclared, setIsDeclared] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // ... (rest of component)
+
+  const handleSubmitAppraisal = async () => {
+    if (!isDeclared) {
+      alert("Please check the declaration box before submitting.");
+      return;
+    }
+    if (!declPlace.trim()) {
+      alert("Please enter the place of declaration.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await submitDeclaration({
+        is_declared: true,
+        place: declPlace,
+        designation: info.desig
+      });
+      
+      const hasHod = localStorage.getItem("hasHod") === "true";
+      const target = hasHod ? "HOD" : "Director";
+      alert(`Appraisal submitted successfully to ${target}!`);
+      
+      // Navigate back to profile or show a success state
+      navigate("/profile");
+    } catch (err) {
+      console.error("Submission error:", err);
+      alert("Failed to submit appraisal: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const [activeMainTab, setActiveMainTab] = useState("myAppraisal");
   const [hodAppraisalTab, setHodAppraisalTab] = useState("partA");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // ── HOD's own appraisal form state ──
-  const [info, setInfo] = useState({ name: HOD_USER.name, qual: "", desig: HOD_USER.designation, ay: HOD_USER.ay });
+  // ── User appraisal form state ──
+  const [info, setInfo] = useState({ 
+    name: meta.full_name || user?.email || "Faculty", 
+    qual: meta.qualification || "", 
+    desig: meta.designation || "Faculty", 
+    ay: "2025-26" 
+  });
   const inf = (k) => (v) => setInfo((p) => ({ ...p, [k]: v }));
 
   const [lectures, setLectures] = useState([
@@ -896,6 +945,7 @@ export default function HODDashboard() {
   const setLec = (i, k, v) => setLectures((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
 
   const [courseFile, setCourseFile] = useState([{ course: "", title: "", details: "", score: "", hod: "", director: "" }]);
+  const setCF = (i, k, v) => setCourseFile((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
   const [innovScore, setInnovScore] = useState("");
   const [innovDetails, setInnovDetails] = useState("");
   const [projects, setProjects] = useState([
@@ -1019,7 +1069,7 @@ export default function HODDashboard() {
 
   // ── Computed scores for HOD appraisal ──
   const totalLecScore = lectures.reduce((a, r) => a + n(r.score), 0);
-  const courseFileScore = n(courseFile.score);
+  const courseFileScore = courseFile.reduce((a, r) => a + n(r.score), 0);
   const innovTotal = n(innovScore);
   const projectTotal = projects.reduce((a, r) => a + n(r.score), 0);
   const qualTotal = quals.reduce((a, r) => a + n(r.score), 0);
@@ -1143,12 +1193,14 @@ export default function HODDashboard() {
     <h3>A2: Course File</h3>
     <table>
       <tr><th>Course</th><th>Title</th><th>Details</th><th>Score</th></tr>
-      <tr>
-        <td>${courseFile.course || "&nbsp;"}</td>
-        <td>${courseFile.title || "&nbsp;"}</td>
-        <td>${courseFile.details || "&nbsp;"}</td>
-        <td class="center">${courseFile.score || "&nbsp;"}</td>
-      </tr>
+      ${courseFile.map(cf => `
+        <tr>
+          <td>${cf.course || "&nbsp;"}</td>
+          <td>${cf.title || "&nbsp;"}</td>
+          <td>${cf.details || "&nbsp;"}</td>
+          <td class="center">${cf.score || "&nbsp;"}</td>
+        </tr>
+      `).join('')}
     </table>
 
     <!-- A3 -->
@@ -1361,10 +1413,10 @@ export default function HODDashboard() {
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#1e293b" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar initials={HOD_USER.avatar} color="#6366f1" size={34} />
+          <Avatar initials={meta.full_name ? meta.full_name.split(' ').map(n => n[0]).join('') : "U"} color="#6366f1" size={34} />
           <div style={{ flex: 1 }}>
-            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{HOD_USER.name.split(" ").slice(0, 2).join(" ")}</div>
-            <div style={{ color: "#475569", fontSize: 9 }}>Faculty {HOD_USER.department.split(" ")[0]}</div>
+            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{meta.full_name ? meta.full_name.split(" ").slice(0, 2).join(" ") : user?.email}</div>
+            <div style={{ color: "#475569", fontSize: 9 }}>{userRole} · {meta.department ? meta.department.split(" ")[0] : ""}</div>
           </div>
         </div>
         <button
@@ -1749,7 +1801,7 @@ export default function HODDashboard() {
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
                           <td style={TD}>{r.label}</td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcr(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcrRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#eff6ff" }}>
@@ -1870,13 +1922,13 @@ export default function HODDashboard() {
                       {ict.map((r, i) => (
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
-                          <td style={TD}><TI val={r.title} onChange={(v) => setIct(i, "title", v)} /></td>
-                          <td style={TD}><TI val={r.desc} onChange={(v) => setIct(i, "desc", v)} /></td>
-                          <td style={TD}><TI val={r.type} onChange={(v) => setIct(i, "type", v)} /></td>
-                          <td style={TD}><TI val={r.quad} onChange={(v) => setIct(i, "quad", v)} /></td>
+                          <td style={TD}><TI val={r.title} onChange={(v) => setIctRow(i, "title", v)} /></td>
+                          <td style={TD}><TI val={r.desc} onChange={(v) => setIctRow(i, "desc", v)} /></td>
+                          <td style={TD}><TI val={r.type} onChange={(v) => setIctRow(i, "type", v)} /></td>
+                          <td style={TD}><TI val={r.quad} onChange={(v) => setIctRow(i, "quad", v)} /></td>
                           <td style={TD}><DocCell id={`ict-${i}`} docs={docs} setDocs={setDocs} /></td>
                           <td style={TD}><ViewCell id={`ict-${i}`} docs={docs} /></td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setIct(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setIctRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#f3e8ff" }}>
@@ -2140,19 +2192,59 @@ export default function HODDashboard() {
                   </tbody>
                 </table>
 
-                <div style={{ padding: "12px", background: g.bg + "40", border: `2px solid ${g.color}60`, borderRadius: 8, marginBottom: 14 }}>
+                <div style={{ padding: "12px", background: g.bg + "40", border: `2px solid ${g.color}60`, borderRadius: 8, marginBottom: 20 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Overall Grade</div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: g.color, marginTop: 4 }}>{g.label}</div>
+                </div>
+
+                {/* ── Final Declaration Section ── */}
+                <div style={{ marginTop: 10, marginBottom: 24, padding: "16px 20px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                  <h4 style={{ margin: "0 0 12px", fontSize: 14, color: "#0f172a", fontWeight: 700 }}>Final Declaration</h4>
+                  
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 18 }}>
+                    <input 
+                      type="checkbox" 
+                      id="declaration-check" 
+                      checked={isDeclared} 
+                      onChange={e => setIsDeclared(e.target.checked)}
+                      style={{ marginTop: 3, width: 16, height: 16, cursor: "pointer" }}
+                    />
+                    <label htmlFor="declaration-check" style={{ fontSize: 12, lineHeight: 1.6, color: "#334155", cursor: "pointer" }}>
+                      I hereby declare that the information provided in this appraisal form is true to the best of my knowledge and belief. 
+                      I understand that any discrepancy or false information may lead to rejection of this appraisal or disciplinary action.
+                    </label>
+                  </div>
+                  
+                  <div style={{ display: "flex", gap: 20 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Place of Submission</label>
+                      <TI val={declPlace} onChange={setDeclPlace} placeholder="e.g. Pune" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Designation</label>
+                      <TI val={info.desig} onChange={() => {}} placeholder="Your designation" />
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
                   <button onClick={generateReport} style={{ padding: "10px 24px", background: "#e2e8f0", color: "#475569", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>
                     Generate Report
                   </button>
-                  <button style={{ padding: "10px 28px", background: "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>
-                    ✔ Submit Appraisal
+                  <button 
+                    onClick={handleSubmitAppraisal}
+                    disabled={submitting}
+                    style={{ padding: "10px 28px", background: submitting ? "#94a3b8" : "#059669", color: "#fff", border: "none", borderRadius: 7, cursor: submitting ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif", transition: "all 0.2s" }}
+                  >
+                    {submitting ? "◌ Submitting..." : "✔ Submit Appraisal"}
                   </button>
                 </div>
+                
+                <p style={{ textAlign: "center", fontSize: 11, color: "#64748b", marginTop: 14 }}>
+                  {localStorage.getItem("hasHod") === "true" 
+                    ? "Form will be routed to your Head of Department (HOD) for review." 
+                    : "Form will be routed directly to the School Director for review."}
+                </p>
               </SC>
             )}
           </div>

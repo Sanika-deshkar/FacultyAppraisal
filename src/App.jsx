@@ -1,11 +1,17 @@
+import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import FacultyProfile from "./pages/FacultyProfile";
 import ProtectedRoute from "./auth/ProtectedRoute";
-import RoleDashboard from "./pages/RoleDashboard";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 
-// ─── Mock users (replace with API later) ─────────────────────────────────────
+const Login = React.lazy(() => import("./pages/Login"));
+const Signup = React.lazy(() => import("./pages/Signup"));
+const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = React.lazy(() => import("./pages/ResetPassword"));
+const FacultyProfile = React.lazy(() => import("./pages/FacultyProfile"));
+const RoleDashboard = React.lazy(() => import("./pages/RoleDashboard"));
+
+// ─── Mock users (replace with API or User Metadata later) ──────────────────────
 const MOCK_USERS = {
   faculty: {
     employeeId: "EMP-2025-001",
@@ -57,12 +63,29 @@ const MOCK_USERS = {
 // ─── Profile Loader ───────────────────────────────────────────────────────────
 function ProfileLoader() {
   const navigate = useNavigate();
-  const role = (localStorage.getItem("role") || "faculty").toLowerCase();
-  const user = MOCK_USERS[role] || MOCK_USERS.faculty;
+  const { user, userRole } = useAuth();
+  
+  // Use metadata if available, otherwise fallback to mock
+  const meta = user?.user_metadata || {};
+  const role = userRole || "faculty";
+  
+  const displayUser = {
+    employeeId: meta.faculty_id || MOCK_USERS[role].employeeId,
+    name: meta.full_name || user?.email || MOCK_USERS[role].name,
+    designation: meta.designation || MOCK_USERS[role].designation,
+    department: meta.department || MOCK_USERS[role].department,
+    school: meta.school || MOCK_USERS[role].school,
+    role: role,
+    avatar: meta.full_name ? meta.full_name.split(' ').map(n => n[0]).join('') : MOCK_USERS[role].avatar,
+    qualification: meta.qualification || "Ph.D",
+    experience: meta.experience || "10 Years",
+    phone: meta.phone || "+91 98765 43210",
+    ay: "2025-26"
+  };
 
   return (
     <FacultyProfile
-      user={user}
+      user={displayUser}
       onProceed={() => navigate("/dashboard")}
     />
   );
@@ -72,32 +95,37 @@ function ProfileLoader() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", fontFamily: "Georgia, serif", color: "#1e293b", fontSize: "1.2rem" }}>Loading Application...</div>}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfileLoader />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfileLoader />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <RoleDashboard />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <RoleDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="/hod-dashboard" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/hod-dashboard" element={<Navigate to="/dashboard" replace />} />
 
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/login" />} />
-      </Routes>
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
