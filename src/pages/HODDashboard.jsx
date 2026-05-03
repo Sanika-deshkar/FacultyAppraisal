@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { APP_INFO } from "../constants/formConfig";
-import { HOD_USER, FACULTY_LIST } from "../data/mockData";
-import { getFacultyForHOD } from "../services/api";
+import { getSubordinates, submitHodReview } from "../services/api";
+import { HOD_USER } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const n = (v) => parseFloat(v) || 0;
@@ -271,18 +272,21 @@ function FacultyReviewForm({ faculty, hodData, setHodData }) {
       <SC title="A2. Course File (Max 20)" accent="#6366f1">
         <table style={T}>
           <thead><tr>
-            <th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
+            <th style={TH}>SN</th><th style={TH}>Course</th><th style={TH}>Title</th><th style={TH}>Details</th>
             <th style={TH}>View Docs</th><th style={TH}>Faculty Score</th><th style={TH_HOD}>HOD Score</th>
           </tr></thead>
           <tbody>
-            <tr>
-              <td style={TD}><RO val={courseFile?.course} /></td>
-              <td style={TD}><RO val={courseFile?.title} /></td>
-              <td style={TDC}><RO val={courseFile?.details} center /></td>
-              <td style={TDV}><ViewDocsCell docKey="cf-0" docs={docs} /></td>
-              <td style={TDS}><RO val={courseFile?.score} center /></td>
-              <td style={TDS_HOD}><HodInput val={get("courseFile", null, "hod")} onChange={v => set("courseFile", null, "hod", v)} /></td>
-            </tr>
+            {rows(courseFile).map((r, i) => (
+              <tr key={i} style={i % 2 ? { background: "#f8fafc" } : {}}>
+                <td style={TDC}>{i + 1}</td>
+                <td style={TD}><RO val={r.course} /></td>
+                <td style={TD}><RO val={r.title} /></td>
+                <td style={TDC}><RO val={r.details} center /></td>
+                <td style={TDV}><ViewDocsCell docKey={`cf-${i}`} docs={docs} /></td>
+                <td style={TDS}><RO val={r.score} center /></td>
+                <td style={TDS_HOD}><HodInput val={get("courseFile", i, "hod")} onChange={v => set("courseFile", i, "hod", v)} /></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </SC>
@@ -749,7 +753,7 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
     const getS = (key) => n(hodData[key] ?? faculty[key]);
 
     const lec = (faculty.lectures || []).reduce((a, _, i) => a + get("lectures", i, "hod"), 0);
-    const cf = get("courseFile", null, "hod");
+    const cf = (faculty.courseFile || []).reduce((a, _, i) => a + get("courseFile", i, "hod"), 0);
     const innov = getS("innovHod");
     const proj = (faculty.projects || []).reduce((a, _, i) => a + get("projects", i, "hod"), 0);
     const qual = (faculty.quals || []).reduce((a, _, i) => a + get("quals", i, "hod"), 0);
@@ -873,24 +877,37 @@ function ReviewPanel({ faculty, onBack, onSubmit }) {
 // ─── Main HOD Dashboard ───────────────────────────────────────────────────────
 export default function HODDashboard() {
   const navigate = useNavigate();
+  const { user, userRole, userData } = useAuth();
+  const meta = user?.user_metadata || {};
+
   const [activeMainTab, setActiveMainTab] = useState("myAppraisal");
   const [hodAppraisalTab, setHodAppraisalTab] = useState("partA");
   const [reviewingFaculty, setReviewingFaculty] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
 
-  const hodSchool = localStorage.getItem("school");
-  const hodDept = localStorage.getItem("department");
-
   useEffect(() => {
-    setFacultyList(getFacultyForHOD(hodDept, hodSchool));
-  }, [hodDept, hodSchool]);
+    const fetchSubordinates = async () => {
+      try {
+        const data = await getSubordinates();
+        setFacultyList(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to fetch subordinates", err);
+      }
+    };
+    fetchSubordinates();
+  }, []);
 
   const [filterStatus, setFilterStatus] = useState("All");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
 
-  // ── HOD's own appraisal form state ──
-  const [info, setInfo] = useState({ name: HOD_USER.name, qual: "", desig: HOD_USER.designation, ay: HOD_USER.ay });
+  // ── User appraisal form state ──
+  const [info, setInfo] = useState({ 
+    name: meta.full_name || user?.email || "HOD", 
+    qual: meta.qualification || "", 
+    desig: meta.designation || "HOD", 
+    ay: "2025-26" 
+  });
   const inf = (k) => (v) => setInfo((p) => ({ ...p, [k]: v }));
 
   const [lectures, setLectures] = useState([
@@ -901,6 +918,7 @@ export default function HODDashboard() {
   const setLec = (i, k, v) => setLectures((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
 
   const [courseFile, setCourseFile] = useState([{ course: "", title: "", details: "", score: "", hod: "", director: "" }]);
+  const setCF = (i, k, v) => setCourseFile((p) => p.map((r, j) => j === i ? { ...r, [k]: v } : r));
   const [innovScore, setInnovScore] = useState("");
   const [innovDetails, setInnovDetails] = useState("");
   const [projects, setProjects] = useState([
@@ -1024,7 +1042,7 @@ export default function HODDashboard() {
 
   // ── Computed scores for HOD appraisal ──
   const totalLecScore = lectures.reduce((a, r) => a + n(r.score), 0);
-  const courseFileScore = n(courseFile.score);
+  const courseFileScore = courseFile.reduce((a, r) => a + n(r.score), 0);
   const innovTotal = n(innovScore);
   const projectTotal = projects.reduce((a, r) => a + n(r.score), 0);
   const qualTotal = quals.reduce((a, r) => a + n(r.score), 0);
@@ -1062,7 +1080,7 @@ export default function HODDashboard() {
   const g = gradeFunc();
 
   const pendingCount = facultyList.filter(f => f.status === "Pending Review").length;
-  const reviewedCount = facultyList.filter(f => f.status === "Reviewed").length;
+  const reviewedCount = facultyList.filter(f => f.status === "HOD Reviewed" || f.status === "Director Reviewed").length;
 
   const navItems = [
     { id: "myAppraisal", icon: "👤", label: "My Appraisal", sub: "View your self-appraisal form" },
@@ -1155,12 +1173,14 @@ export default function HODDashboard() {
     <h3>A2: Course File</h3>
     <table>
       <tr><th>Course</th><th>Title</th><th>Details</th><th>Score</th></tr>
-      <tr>
-        <td>${courseFile.course || "&nbsp;"}</td>
-        <td>${courseFile.title || "&nbsp;"}</td>
-        <td>${courseFile.details || "&nbsp;"}</td>
-        <td class="center">${courseFile.score || "&nbsp;"}</td>
-      </tr>
+      ${courseFile.map(cf => `
+        <tr>
+          <td>${cf.course || "&nbsp;"}</td>
+          <td>${cf.title || "&nbsp;"}</td>
+          <td>${cf.details || "&nbsp;"}</td>
+          <td class="center">${cf.score || "&nbsp;"}</td>
+        </tr>
+      `).join('')}
     </table>
 
     <!-- A3 -->
@@ -1377,10 +1397,10 @@ export default function HODDashboard() {
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#1e293b" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar initials={HOD_USER.avatar} color="#6366f1" size={34} />
+          <Avatar initials={meta.full_name ? meta.full_name.split(' ').map(n => n[0]).join('') : HOD_USER.avatar} color="#6366f1" size={34} />
           <div style={{ flex: 1 }}>
-            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{HOD_USER.name.split(" ").slice(0, 2).join(" ")}</div>
-            <div style={{ color: "#475569", fontSize: 9 }}>HOD · {HOD_USER.department.split(" ")[0]}</div>
+            <div style={{ color: "#e2e8f0", fontSize: 11, fontWeight: 700 }}>{meta.full_name ? meta.full_name.split(" ").slice(0, 2).join(" ") : HOD_USER.name.split(" ").slice(0, 2).join(" ")}</div>
+            <div style={{ color: "#475569", fontSize: 9 }}>HOD · {meta.department ? meta.department.split(" ")[0] : HOD_USER.department.split(" ")[0]}</div>
           </div>
         </div>
         <button
@@ -1765,7 +1785,7 @@ export default function HODDashboard() {
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
                           <td style={TD}>{r.label}</td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcr(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setAcrRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#eff6ff" }}>
@@ -1886,13 +1906,13 @@ export default function HODDashboard() {
                       {ict.map((r, i) => (
                         <tr key={i} style={i % 2 === 1 ? { background: "#f8fafc" } : {}}>
                           <td style={TDC}>{i + 1}</td>
-                          <td style={TD}><TI val={r.title} onChange={(v) => setIct(i, "title", v)} /></td>
-                          <td style={TD}><TI val={r.desc} onChange={(v) => setIct(i, "desc", v)} /></td>
-                          <td style={TD}><TI val={r.type} onChange={(v) => setIct(i, "type", v)} /></td>
-                          <td style={TD}><TI val={r.quad} onChange={(v) => setIct(i, "quad", v)} /></td>
+                          <td style={TD}><TI val={r.title} onChange={(v) => setIctRow(i, "title", v)} /></td>
+                          <td style={TD}><TI val={r.desc} onChange={(v) => setIctRow(i, "desc", v)} /></td>
+                          <td style={TD}><TI val={r.type} onChange={(v) => setIctRow(i, "type", v)} /></td>
+                          <td style={TD}><TI val={r.quad} onChange={(v) => setIctRow(i, "quad", v)} /></td>
                           <td style={TD}><DocCell id={`ict-${i}`} docs={docs} setDocs={setDocs} /></td>
                           <td style={TD}><ViewCell id={`ict-${i}`} docs={docs} /></td>
-                          <td style={TDS}><TI val={r.score} onChange={(v) => setIct(i, "score", v)} center /></td>
+                          <td style={TDS}><TI val={r.score} onChange={(v) => setIctRow(i, "score", v)} center /></td>
                         </tr>
                       ))}
                       <tr style={{ background: "#f3e8ff" }}>
